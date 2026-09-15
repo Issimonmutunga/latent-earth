@@ -779,9 +779,13 @@ input[type="range"] {
   font-size: 13px;
   letter-spacing: 0.04em;
   color: var(--text);
-  opacity: 0.4;
   display: grid;
   gap: 1px;
+  background: rgba(14, 17, 19, 0.55);
+  border: 1px solid rgba(150, 170, 185, 0.25);
+  border-radius: 4px;
+  padding: 6px 10px;
+  backdrop-filter: blur(2px);
 }
 .wordmark__sub {
   font-size: 10.5px;

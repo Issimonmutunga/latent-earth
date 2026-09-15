@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { availableSources, embeddingRegistry, getSource } from "../src/embeddings/registry/sources.ts";
 import { createMockSource } from "../src/embeddings/mock/mockSource.ts";
+
+const env = import.meta.env as Record<string, string | undefined>;
+
+beforeEach(() => {
+  delete env.VITE_GEE_PROJECT_ID;
+  delete env.VITE_GEE_CLIENT_ID;
+});
 
 describe("embedding registry", () => {
   it("lists the initial sources without fabricated implementations", () => {

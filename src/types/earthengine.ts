@@ -49,6 +49,14 @@ export interface EarthEngineApi {
     project?: string,
   ): void;
   data: {
+    authenticateViaOauth(
+      clientId: string | null,
+      onSuccess: () => void,
+      onError?: (err: unknown) => void,
+      extraScopes?: string[],
+      onImmediateFailed?: () => void,
+      suppressDefaultScopes?: boolean,
+    ): void;
     authenticateViaPopup(onSuccess: () => void, onError?: (err: unknown) => void): void;
     reset?: () => void;
   };

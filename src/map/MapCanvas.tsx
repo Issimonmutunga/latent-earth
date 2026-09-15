@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { StyleSpecification } from "maplibre-gl";
@@ -59,6 +59,7 @@ export default function MapCanvas(props: MapCanvasProps) {
   const dragActiveRef = useRef(false);
   const propsRef = useRef(props);
   propsRef.current = props;
+  const [ready, setReady] = useState(false);
 
   const style = activeBasemaps[props.basemapKey] as StyleSpecification;
 
@@ -74,6 +75,9 @@ export default function MapCanvas(props: MapCanvasProps) {
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     mapRef.current = map;
     propsRef.current.onMapReady?.(map);
+
+    map.on("load", () => setReady(true));
+    if (map.isStyleLoaded()) setReady(true);
 
     map.on("mousedown", (e) => {
       if (propsRef.current.drawing) {
@@ -102,12 +106,14 @@ export default function MapCanvas(props: MapCanvasProps) {
     });
     map.on("click", (e) => {
       if (propsRef.current.drawing || dragActiveRef.current) return;
+      if (!map.getLayer("embeddings-circles")) return;
       const features = map.queryRenderedFeatures(e.point, { layers: ["embeddings-circles"] });
       const id = features.length ? (features[0].properties?.id as string | undefined) ?? null : null;
       propsRef.current.onSelectPoint(id);
     });
     map.on("mousemove", (e) => {
       const { hoveredPointId } = propsRef.current;
+      if (!map.getLayer("embeddings-circles")) return;
       const features = map.queryRenderedFeatures(e.point, { layers: ["embeddings-circles"] });
       const id = features.length ? (features[0].properties?.id as string | undefined) ?? null : null;
       if (id !== hoveredPointId) propsRef.current.onHoverPoint(id);
@@ -125,12 +131,13 @@ export default function MapCanvas(props: MapCanvasProps) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const current = map.getStyle() as StyleSpecification;
-    if (current.name !== style.name) {
+    if (!map || !ready) return;
+    const current = map.getStyle() as StyleSpecification | undefined;
+    if (current && current.name !== style.name) {
+      setReady(false);
       map.setStyle(style);
     }
-  }, [style]);
+  }, [ready, style]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -140,6 +147,8 @@ export default function MapCanvas(props: MapCanvasProps) {
     if (container) {
       container.style.cursor = props.drawing ? "crosshair" : "";
     }
+
+    if (!ready) return;
 
     let source = map.getSource("embeddings") as maplibregl.GeoJSONSource | undefined;
     if (!source) {
@@ -185,11 +194,12 @@ export default function MapCanvas(props: MapCanvasProps) {
     props.selectedPointId,
     props.hoveredPointId,
     props.drawing,
+    ready,
   ]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !ready) return;
     const area = props.area;
     if (!area) {
       if (map.getLayer("area-fill")) map.removeLayer("area-fill");
@@ -224,7 +234,7 @@ export default function MapCanvas(props: MapCanvasProps) {
         paint: { "fill-color": "#7fd6e0", "fill-opacity": 0.06 },
       });
     }
-  }, [props.area]);
+  }, [props.area, ready]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -22,8 +22,13 @@ export function getGeeProjectId(): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
+export function getGeeClientId(): string | null {
+  const value = import.meta.env.VITE_GEE_CLIENT_ID;
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
 export function isConfigured(): boolean {
-  return getGeeProjectId() !== null;
+  return getGeeProjectId() !== null && getGeeClientId() !== null;
 }
 
 export function resolveYear(date?: string): number {

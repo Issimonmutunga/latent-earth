@@ -37,12 +37,24 @@ account, so no secret is embedded in the app:
 
 ```sh
 VITE_GEE_PROJECT_ID=your-ee-project-id
+VITE_GEE_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
 ```
 
-Set the variable in a local `.env` file (or environment) before `npm run dev`.
-Without it the source stays disabled (`integration-pending`). In the app,
-choose AlphaEarth, hit **Connect** in the Source step, sign in with Google, then
-draw an area and retrieve a sample
+Set the variables in a local `.env.local` file (or environment) before
+`npm run dev`. The OAuth client ID is a *Web* OAuth 2.0 Client created in the
+same Cloud project, with the app's URL (e.g. `http://localhost:5199`) listed
+under **Authorized JavaScript origins**. Without both variables the source stays
+disabled (`integration-pending`). In the app, choose AlphaEarth, hit **Connect**
+in the Source step, sign in with Google, then draw an area and retrieve a sample.
+
+### Deploying
+
+The app is a static Vite build (`dist/`); it can be hosted anywhere (Vercel,
+Netlify, etc.). For the Earth Engine sign-in to work on a deployed origin,
+provide the same two variables as Vercel/Netlify **environment variables**
+(Vite inlines `VITE_*` at build time), and add the deployed origin (e.g.
+`https://your-domain.com`) to the OAuth client's **Authorized JavaScript
+origins** in the Google Cloud Console.
 
 Data license (CC-BY 4.0) attribution: *"The AlphaEarth Foundations Satellite
 Embedding dataset is produced by Google and Google DeepMind."*

@@ -1,15 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ALPHAEARTH,
+  getGeeClientId,
   getGeeProjectId,
   isConfigured,
   resolveYear,
 } from "../src/embeddings/gee/config.ts";
 
-const env = import.meta.env as { VITE_GEE_PROJECT_ID?: string };
+const env = import.meta.env as { VITE_GEE_PROJECT_ID?: string; VITE_GEE_CLIENT_ID?: string };
 
 afterEach(() => {
   delete env.VITE_GEE_PROJECT_ID;
+  delete env.VITE_GEE_CLIENT_ID;
 });
 
 describe("alphaearth dataset config", () => {
@@ -30,15 +32,33 @@ describe("alphaearth dataset config", () => {
     expect(ALPHAEARTH.attribution).toMatch(/produced by Google and Google DeepMind/);
   });
 
-  it("is not configured without a project id", () => {
+  it("is not configured without a project id and client id", () => {
     delete env.VITE_GEE_PROJECT_ID;
+    delete env.VITE_GEE_CLIENT_ID;
     expect(isConfigured()).toBe(false);
     expect(getGeeProjectId()).toBeNull();
+    expect(getGeeClientId()).toBeNull();
   });
 
-  it("is configured when a project id is set", () => {
-    env.VITE_GEE_PROJECT_ID = "  ee-my-project  ";
+  it("is not configured when only the project id is set", () => {
+    env.VITE_GEE_PROJECT_ID = "ee-my-project";
+    delete env.VITE_GEE_CLIENT_ID;
     expect(getGeeProjectId()).toBe("ee-my-project");
+    expect(isConfigured()).toBe(false);
+  });
+
+  it("is not configured when only the client id is set", () => {
+    delete env.VITE_GEE_PROJECT_ID;
+    env.VITE_GEE_CLIENT_ID = "my-client-id.apps.googleusercontent.com";
+    expect(getGeeClientId()).toBe("my-client-id.apps.googleusercontent.com");
+    expect(isConfigured()).toBe(false);
+  });
+
+  it("is configured when a project id and client id are set", () => {
+    env.VITE_GEE_PROJECT_ID = "  ee-my-project  ";
+    env.VITE_GEE_CLIENT_ID = "  my-client-id.apps.googleusercontent.com  ";
+    expect(getGeeProjectId()).toBe("ee-my-project");
+    expect(getGeeClientId()).toBe("my-client-id.apps.googleusercontent.com");
     expect(isConfigured()).toBe(true);
   });
 

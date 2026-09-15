@@ -142,10 +142,12 @@ export default function ControlBar() {
                   </span>
                   <span className="source-item__desc">{s.description}</span>
                 </button>
+                {source?.id === s.id && s.providerConnection === "earth-engine" && (
+                  <EarthEngineConnection />
+                )}
               </li>
             ))}
           </ul>
-          {source?.providerConnection === "earth-engine" && <EarthEngineConnection />}
         </StepPopover>
       )}
 

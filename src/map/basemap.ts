@@ -11,9 +11,9 @@ export const darkBasemap: StyleSpecification = {
   sources: {
     basemap: {
       type: "raster",
-      tiles: ["https://tiles.stadiamaps.com/tiles/alidade_tile/{z}/{x}/{y}.png"],
+      tiles: ["https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
       tileSize: 256,
-      attribution: "© Stadia Maps © OpenMapTiles © OpenStreetMap contributors",
+      attribution: "© OpenStreetMap contributors © CARTO",
       maxzoom: 20,
     },
   },
@@ -23,11 +23,8 @@ export const darkBasemap: StyleSpecification = {
       type: "raster",
       source: "basemap",
       paint: {
-        "raster-opacity": 0.85,
-        "raster-saturation": -0.7,
-        "raster-contrast": 0.08,
-        "raster-brightness-min": 0.12,
-        "raster-brightness-max": 0.55,
+        "raster-opacity": 0.9,
+        "raster-saturation": -0.15,
       },
     },
   ],
@@ -39,10 +36,10 @@ export const lightBasemap: StyleSpecification = {
   sources: {
     basemap: {
       type: "raster",
-      tiles: ["https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png"],
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       tileSize: 256,
-      attribution: "© Stadia Maps © OpenMapTiles © OpenStreetMap contributors",
-      maxzoom: 20,
+      attribution: "© OpenStreetMap contributors",
+      maxzoom: 19,
     },
   },
   layers: [
@@ -50,7 +47,7 @@ export const lightBasemap: StyleSpecification = {
       id: "basemap",
       type: "raster",
       source: "basemap",
-      paint: { "raster-opacity": 0.9, "raster-saturation": -0.25 },
+      paint: { "raster-opacity": 1, "raster-saturation": -0.2 },
     },
   ],
 };
