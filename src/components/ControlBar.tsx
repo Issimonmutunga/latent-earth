@@ -4,6 +4,7 @@ import { useWorkspace } from "../app/workspace.tsx";
 import ControlStepButton from "../ui/ControlStepButton.tsx";
 import StepPopover from "../ui/StepPopover.tsx";
 import ProgressBar from "../ui/ProgressBar.tsx";
+import EarthEngineConnection from "./EarthEngineConnection.tsx";
 
 const MAX_SAMPLE = 2000;
 
@@ -144,6 +145,7 @@ export default function ControlBar() {
               </li>
             ))}
           </ul>
+          {source?.providerConnection === "earth-engine" && <EarthEngineConnection />}
         </StepPopover>
       )}
 

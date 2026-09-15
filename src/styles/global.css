@@ -851,3 +851,25 @@ input[type="range"] {
     transition: none !important;
   }
 }
+
+/* ---- Earth Engine connection ---- */
+.connection-panel {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-strong);
+}
+.connection-panel__title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.connection-panel code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+.popover-copy--error {
+  color: var(--error);
+}

@@ -44,6 +44,7 @@ export interface EmbeddingSource {
   spatialResolution: number;
   temporalCoverage: string;
   status: SourceStatus;
+  providerConnection?: "earth-engine";
   query(request: EmbeddingQuery): Promise<EmbeddingResult>;
 }
 
