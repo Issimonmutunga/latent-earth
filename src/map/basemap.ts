@@ -11,10 +11,10 @@ export const darkBasemap: StyleSpecification = {
   sources: {
     basemap: {
       type: "raster",
-      tiles: ["https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       tileSize: 256,
-      attribution: "© OpenStreetMap contributors © CARTO",
-      maxzoom: 20,
+      attribution: "© OpenStreetMap contributors",
+      maxzoom: 19,
     },
   },
   layers: [
@@ -23,8 +23,11 @@ export const darkBasemap: StyleSpecification = {
       type: "raster",
       source: "basemap",
       paint: {
-        "raster-opacity": 0.9,
-        "raster-saturation": -0.15,
+        "raster-opacity": 1,
+        "raster-saturation": -0.6,
+        "raster-contrast": 0.05,
+        "raster-brightness-min": 0.12,
+        "raster-brightness-max": 0.55,
       },
     },
   ],
