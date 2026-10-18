@@ -62,10 +62,24 @@ VITE_GEE_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
 
 Set the variables in a local `.env.local` file (or environment) before
 `npm run dev`. The OAuth client ID is a *Web* OAuth 2.0 Client created in the
-same Cloud project, with the app's URL (e.g. `http://localhost:5199`) listed
+same Cloud project, with the app's URL (e.g. `http://localhost:5173`) listed
 under **Authorized JavaScript origins**. Without both variables the source stays
-disabled (`integration-pending`). In the app, choose AlphaEarth, hit **Connect**
-in the Source step, sign in with Google, then draw an area and retrieve a sample.
+disabled (`integration-pending`). In the app, choose AlphaEarth, draw an area and
+press **Retrieve** — it opens Google's sign-in popup (Google Identity Services)
+on that click, then loads the sample.
+
+If sign-in fails, check in the Google Cloud Console (same project):
+
+- **OAuth client** (APIs & Services → Credentials): type *Web application*, with
+  every origin you use (e.g. `http://localhost:5173`,
+  `https://latent-earth.vercel.app`) under **Authorized JavaScript origins**.
+  An `origin_mismatch` error in the popup means one is missing.
+- **OAuth consent screen**: while it is in *Testing*, add each Google account
+  that will sign in as a **test user**.
+- **Earth Engine API** enabled, and the project registered for Earth Engine
+  (code.earthengine.google.com/register).
+- Accounts other than the owner need the *Earth Engine Resource Viewer* and
+  *Service Usage Consumer* roles on the project.
 
 ### Deploying
 

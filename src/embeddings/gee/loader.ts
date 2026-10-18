@@ -1,91 +1,52 @@
-import type { EarthEngineApi } from "../../types/earthengine.ts";
+import type { EarthEngineApi, GoogleIdentityServices } from "../../types/earthengine.ts";
 
 export const EARTH_ENGINE_SCRIPT_URL =
-  "https://ajax.googleapis.com/ajax/libs/earthengine/0.1.365/earthengine-api.min.js";
+  "https://cdn.jsdelivr.net/npm/@google/earthengine@1.7.40/build/ee_api_js.js";
 
-export const GOOGLE_API_SCRIPT_URL = "https://apis.google.com/js/client.js";
+/** Google Identity Services — the supported browser OAuth library. */
+export const GOOGLE_IDENTITY_SCRIPT_URL = "https://accounts.google.com/gsi/client";
 
-export interface GoogleApiClient {
-  auth: {
-    authorize: (
-      config: { client_id: string; immediate: boolean; scope: string },
-      callback: (result: unknown) => void,
-    ) => void;
-  };
-}
+const scripts = new Map<string, Promise<void>>();
 
-let pending: Promise<EarthEngineApi> | null = null;
-
-export function ensureEarthEngine(): Promise<EarthEngineApi> {
+function loadScript(src: string, ready: () => boolean, name: string): Promise<void> {
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("Earth Engine client is only available in the browser."));
+    return Promise.reject(new Error(`${name} is only available in the browser.`));
   }
-  if (window.ee) return Promise.resolve(window.ee);
-  if (pending) return pending;
-  pending = new Promise<EarthEngineApi>((resolve, reject) => {
+  if (ready()) return Promise.resolve();
+  const existing = scripts.get(src);
+  if (existing) return existing;
+  const promise = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = EARTH_ENGINE_SCRIPT_URL;
+    script.src = src;
     script.async = true;
     script.onload = () => {
-      if (window.ee) {
-        resolve(window.ee);
+      if (ready()) {
+        resolve();
       } else {
-        pending = null;
-        reject(new Error("Earth Engine client loaded without an `ee` global."));
+        scripts.delete(src);
+        reject(new Error(`${name} loaded but did not initialise.`));
       }
     };
     script.onerror = () => {
-      pending = null;
-      reject(new Error("Failed to load the Earth Engine API client."));
+      scripts.delete(src);
+      reject(new Error(`Failed to load ${name}. Check your connection or ad blocker.`));
     };
     document.head.appendChild(script);
   });
-  return pending;
+  scripts.set(src, promise);
+  return promise;
 }
 
-let gapiPending: Promise<void> | null = null;
-
-function isGapiReady(): boolean {
-  const gapi = (window as unknown as { gapi?: GoogleApiClient }).gapi;
-  return typeof gapi?.auth?.authorize === "function";
+export async function ensureEarthEngine(): Promise<EarthEngineApi> {
+  await loadScript(EARTH_ENGINE_SCRIPT_URL, () => Boolean(window.ee), "the Earth Engine client");
+  return window.ee!;
 }
 
-function loadGoogleApi(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      reject(new Error("Google API client is only available in the browser."));
-      return;
-    }
-    if (isGapiReady()) {
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = GOOGLE_API_SCRIPT_URL;
-    script.async = true;
-    script.onload = () => {
-      const started = Date.now();
-      const timer = window.setInterval(() => {
-        if (isGapiReady()) {
-          window.clearInterval(timer);
-          resolve();
-        } else if (Date.now() - started > 20000) {
-          window.clearInterval(timer);
-          gapiPending = null;
-          reject(new Error("Timed out waiting for the Google API client library."));
-        }
-      }, 100);
-    };
-    script.onerror = () => {
-      gapiPending = null;
-      reject(new Error("Failed to load the Google API client library."));
-    };
-    document.head.appendChild(script);
-  });
-}
-
-export function ensureGoogleApi(): Promise<void> {
-  if (gapiPending) return gapiPending;
-  gapiPending = loadGoogleApi();
-  return gapiPending;
+export async function ensureGoogleIdentity(): Promise<GoogleIdentityServices> {
+  await loadScript(
+    GOOGLE_IDENTITY_SCRIPT_URL,
+    () => typeof window.google?.accounts?.oauth2?.initTokenClient === "function",
+    "Google sign-in",
+  );
+  return window.google!;
 }

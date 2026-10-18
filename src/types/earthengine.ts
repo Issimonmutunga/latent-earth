@@ -7,7 +7,8 @@ export interface EarthEngineFeature {
 }
 
 export interface EarthEngineFeatureCollection {
-  getInfo(): Promise<EarthEngineSampleResult>;
+  /** Asynchronous when given a callback (the synchronous form blocks the page). */
+  getInfo(callback: (result: EarthEngineSampleResult | undefined, error?: string) => void): void;
 }
 
 export interface EarthEngineImage {
@@ -49,16 +50,22 @@ export interface EarthEngineApi {
     project?: string,
   ): void;
   data: {
-    authenticateViaOauth(
-      clientId: string | null,
-      onSuccess: () => void,
-      onError?: (err: unknown) => void,
+    setAuthToken(
+      clientId: string,
+      tokenType: string,
+      accessToken: string,
+      expiresIn: number,
       extraScopes?: string[],
-      onImmediateFailed?: () => void,
-      suppressDefaultScopes?: boolean,
+      callback?: () => void,
+      updateAuthLibrary?: boolean,
     ): void;
-    authenticateViaPopup(onSuccess: () => void, onError?: (err: unknown) => void): void;
-    reset?: () => void;
+    setAuthTokenRefresher(
+      refresher: (
+        authArgs: { scope: string },
+        callback: (result: { access_token?: string; token_type?: string; expires_in?: number; error?: string }) => void,
+      ) => void,
+    ): void;
+    clearAuthToken?: () => void;
   };
   Geometry: {
     Point(coordinates: [number, number]): EarthEngineGeometry;
@@ -72,8 +79,36 @@ export interface EarthEngineApi {
   FeatureCollection(features: EarthEngineFeature[]): EarthEngineFeatureCollection;
 }
 
+/** Minimal Google Identity Services token-client surface. */
+export interface TokenResponse {
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number | string;
+  error?: string;
+  error_description?: string;
+}
+
+export interface TokenClient {
+  requestAccessToken(overrides?: { prompt?: string }): void;
+}
+
+export interface GoogleIdentityServices {
+  accounts: {
+    oauth2: {
+      initTokenClient(config: {
+        client_id: string;
+        scope: string;
+        callback: (response: TokenResponse) => void;
+        error_callback?: (error: { type: string; message?: string }) => void;
+      }): TokenClient;
+      revoke?(token: string, done?: () => void): void;
+    };
+  };
+}
+
 declare global {
   interface Window {
     ee?: EarthEngineApi;
+    google?: GoogleIdentityServices;
   }
 }

@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useWorkspace } from "../../app/workspace.tsx";
 import { usePointColors } from "../../app/pointColors.ts";
 import EmbeddingScatter from "../../visualization/EmbeddingScatter.tsx";
-import { NEUTRAL_POINT, viridis } from "../../visualization/colors.ts";
+import { viridis } from "../../visualization/colors.ts";
+import { useThemeColors } from "../../app/theme.tsx";
 import { rankBySimilarity } from "../../analysis/similarity.ts";
 
 const BINS = 12;
@@ -10,6 +11,7 @@ const BINS = 12;
 /** Similarity view: one query point, every other point colored by distance to it. */
 export default function SimilarityView() {
   const { state, selectPoint, setQueryPoint, setHoveredPoint, flyToPoint } = useWorkspace();
+  const colors = useThemeColors();
   const pointColors = usePointColors() ?? (state.queryPointId ? new Map<string, string>() : null);
 
   const query = useMemo(
@@ -88,7 +90,8 @@ export default function SimilarityView() {
           <EmbeddingScatter
             points={state.sample.points}
             pointColors={pointColors}
-            neutralColor={NEUTRAL_POINT}
+            neutralColor={colors.neutral}
+          accentColor={colors.accent}
             selectedPointId={state.selectedPointId}
             hoveredPointId={state.hoveredPointId}
             queryPointId={state.queryPointId}

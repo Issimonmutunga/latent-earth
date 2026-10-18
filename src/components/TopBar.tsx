@@ -3,10 +3,13 @@ import { useWorkspace } from "../app/workspace.tsx";
 import { usePointAnnotations } from "../app/annotations.ts";
 import { downloadText, sampleToCsv, sampleToGeoJson, sessionSummary } from "../app/export.ts";
 import { BASEMAP_LABELS, type BasemapKey } from "../map/basemap.ts";
+import type { Theme } from "../app/theme.tsx";
 
 interface TopBarProps {
   basemap: BasemapKey;
   onBasemap: (key: BasemapKey) => void;
+  theme: Theme;
+  onToggleTheme: () => void;
   helpOpen: boolean;
   onHelp: (open: boolean) => void;
 }
@@ -34,7 +37,7 @@ function useDismiss(open: boolean, close: () => void) {
   return ref;
 }
 
-export default function TopBar({ basemap, onBasemap, helpOpen, onHelp }: TopBarProps) {
+export default function TopBar({ basemap, onBasemap, theme, onToggleTheme, helpOpen, onHelp }: TopBarProps) {
   const { state, notify } = useWorkspace();
   const annotations = usePointAnnotations();
   const [exportOpen, setExportOpen] = useState(false);
@@ -90,6 +93,16 @@ export default function TopBar({ basemap, onBasemap, helpOpen, onHelp }: TopBarP
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={onToggleTheme}
+        title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {theme === "dark" ? "☀" : "☾"}
+      </button>
 
       <div className="menu-anchor" ref={exportRef}>
         <button

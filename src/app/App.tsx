@@ -10,10 +10,11 @@ import Inspector from "../components/Inspector.tsx";
 import ColorPanel from "../components/ColorPanel.tsx";
 import TopBar from "../components/TopBar.tsx";
 import Toast from "../ui/Toast.tsx";
+import ErrorBoundary from "../ui/ErrorBoundary.tsx";
 import EmbeddingView from "../components/views/EmbeddingView.tsx";
 import SimilarityView from "../components/views/SimilarityView.tsx";
 import AnalysisView from "../components/views/AnalysisView.tsx";
-import { NEUTRAL_POINT } from "../visualization/colors.ts";
+import { ThemeProvider, useTheme, THEME_COLORS } from "./theme.tsx";
 import { setMapInstance } from "../map/mapHandle.ts";
 import { BASEMAP_LABELS, type BasemapKey } from "../map/basemap.ts";
 import type { ViewMode } from "../types/embedding.ts";
@@ -23,11 +24,15 @@ const VIEW_KEYS: Record<string, ViewMode> = { "1": "map", "2": "embedding", "3":
 
 export default function App() {
   return (
-    <WorkspaceProvider>
-      <TargetModelProvider>
-        <Workspace />
-      </TargetModelProvider>
-    </WorkspaceProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <WorkspaceProvider>
+          <TargetModelProvider>
+            <Workspace />
+          </TargetModelProvider>
+        </WorkspaceProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -42,7 +47,16 @@ function Workspace() {
   const { state, setArea, selectPoint, setHoveredPoint, setView, startDrawing, stopDrawing, retrieveSample, notify } = api;
   const pointColors = usePointColors();
   const annotations = usePointAnnotations();
-  const [basemap, setBasemap] = useState<BasemapKey>("dark");
+  const { theme, setTheme } = useTheme();
+  const colors = THEME_COLORS[theme];
+  const [basemap, setBasemap] = useState<BasemapKey>(theme === "dark" ? "dark" : "light");
+
+  const toggleTheme = useCallback(() => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    // Keep the street map in step with the theme; leave satellite alone.
+    setBasemap((b) => (b === "satellite" ? b : next === "dark" ? "dark" : "light"));
+  }, [theme, setTheme]);
   const [helpOpen, setHelpOpen] = useState(false);
   const hasSample = state.sample !== null;
 
@@ -105,7 +119,8 @@ function Workspace() {
         drawing={state.drawing}
         points={state.sample?.points ?? []}
         pointColors={pointColors}
-        neutralColor={NEUTRAL_POINT}
+        neutralColor={colors.neutral}
+        accentColor={colors.accent}
         selectedPointId={state.selectedPointId}
         hoveredPointId={state.hoveredPointId}
         queryPointId={state.queryPointId}
@@ -118,14 +133,17 @@ function Workspace() {
         onMapReady={setMapInstance}
       />
 
-      <ControlBar />
-
-      <TopBar
-        basemap={basemap}
-        onBasemap={setBasemap}
-        helpOpen={helpOpen}
-        onHelp={setHelpOpen}
-      />
+      <div className="top-row">
+        <ControlBar />
+        <TopBar
+          basemap={basemap}
+          onBasemap={setBasemap}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          helpOpen={helpOpen}
+          onHelp={setHelpOpen}
+        />
+      </div>
 
       <ViewSwitcher active={state.view} disabled={!hasSample} onChange={setView} />
 

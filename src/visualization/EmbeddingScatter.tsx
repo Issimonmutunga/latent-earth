@@ -6,6 +6,7 @@ interface EmbeddingScatterProps {
   points: EmbeddingPoint[];
   pointColors: Map<string, string> | null;
   neutralColor: string;
+  accentColor: string;
   selectedPointId: string | null;
   hoveredPointId: string | null;
   queryPointId: string | null;
@@ -43,6 +44,7 @@ export default function EmbeddingScatter({
   points,
   pointColors,
   neutralColor,
+  accentColor,
   selectedPointId,
   hoveredPointId,
   queryPointId,
@@ -136,14 +138,14 @@ export default function EmbeddingScatter({
         ctx.fill();
         if (isSel || isHov) {
           ctx.globalAlpha = 1;
-          ctx.strokeStyle = "#7fd6e0";
+          ctx.strokeStyle = accentColor;
           ctx.lineWidth = 1.4;
           ctx.stroke();
         }
       }
     }
     ctx.globalAlpha = 1;
-  }, [sweep, rect, selectedPointId, hoveredPointId, queryPointId]);
+  }, [sweep, rect, selectedPointId, hoveredPointId, queryPointId, pointColors, neutralColor, accentColor]);
 
   function onMove(e: React.PointerEvent) {
     const rectEl = wrapRef.current?.getBoundingClientRect();

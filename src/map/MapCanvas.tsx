@@ -20,6 +20,8 @@ interface MapCanvasProps {
   /** id -> hex color. Omit/empty to use the neutral color for all points. */
   pointColors: Map<string, string> | null;
   neutralColor: string;
+  /** Theme accent for the area outline and highlight rings. */
+  accentColor: string;
   selectedPointId: string | null;
   hoveredPointId: string | null;
   queryPointId: string | null;
@@ -37,7 +39,6 @@ const EMPTY_COLLECTION: GeoFeatureCollection = {
   features: [],
 };
 
-const ACCENT = "#7fd6e0";
 const POINT_LAYER = "embeddings-circles";
 /** Minimum drag, in screen pixels, for a drawn box to count. */
 const MIN_DRAG_PX = 6;
@@ -75,20 +76,31 @@ function boxFrom(a: maplibregl.LngLat, b: maplibregl.LngLat): BoundingBox {
   };
 }
 
-function ensureDraftLayer(map: maplibregl.Map): maplibregl.GeoJSONSource {
+function pointStrokeColor(accent: string): maplibregl.ExpressionSpecification {
+  return [
+    "case",
+    ["==", ["get", "q"], 1],
+    "#ffffff",
+    ["any", ["==", ["get", "sel"], 1], ["==", ["get", "hov"], 1], ["==", ["get", "pin"], 1]],
+    accent,
+    "rgba(0,0,0,0.55)",
+  ];
+}
+
+function ensureDraftLayer(map: maplibregl.Map, accent: string): maplibregl.GeoJSONSource {
   if (!map.getSource("draft-area")) {
     map.addSource("draft-area", { type: "geojson", data: EMPTY_COLLECTION });
     map.addLayer({
       id: "draft-area-fill",
       type: "fill",
       source: "draft-area",
-      paint: { "fill-color": ACCENT, "fill-opacity": 0.12 },
+      paint: { "fill-color": accent, "fill-opacity": 0.12 },
     });
     map.addLayer({
       id: "draft-area-outline",
       type: "line",
       source: "draft-area",
-      paint: { "line-color": ACCENT, "line-width": 2 },
+      paint: { "line-color": accent, "line-width": 2 },
     });
   }
   return map.getSource("draft-area") as maplibregl.GeoJSONSource;
@@ -102,6 +114,9 @@ export default function MapCanvas(props: MapCanvasProps) {
   const propsRef = useRef(props);
   propsRef.current = props;
   const [ready, setReady] = useState(false);
+  // False from the moment a new basemap style is requested until it loads, so
+  // layer effects in the same render don't touch a style that is being replaced.
+  const styleReadyRef = useRef(false);
 
   const style = activeBasemaps[props.basemapKey] as StyleSpecification;
 
@@ -112,6 +127,8 @@ export default function MapCanvas(props: MapCanvasProps) {
       style,
       center: [20, 20],
       zoom: 1.6,
+      // Basemap tiles stop at z19; deeper zoom is just blurry pixels.
+      maxZoom: 18,
       attributionControl: { compact: true },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
@@ -127,24 +144,30 @@ export default function MapCanvas(props: MapCanvasProps) {
     propsRef.current.onMapReady?.(map);
 
     // Fires on the first load and again after every basemap switch.
-    map.on("style.load", () => setReady(true));
-    if (map.isStyleLoaded()) setReady(true);
+    map.on("style.load", () => {
+      styleReadyRef.current = true;
+      setReady(true);
+    });
+    if (map.isStyleLoaded()) {
+      styleReadyRef.current = true;
+      setReady(true);
+    }
 
     const beginDraft = (lngLat: maplibregl.LngLat, point: maplibregl.Point) => {
       dragRef.current = { start: lngLat, startPx: point, last: lngLat };
-      ensureDraftLayer(map).setData(EMPTY_COLLECTION);
+      ensureDraftLayer(map, propsRef.current.accentColor).setData(EMPTY_COLLECTION);
     };
     const moveDraft = (lngLat: maplibregl.LngLat) => {
       const drag = dragRef.current;
       if (!drag) return;
       drag.last = lngLat;
-      ensureDraftLayer(map).setData(areaFeature(boxFrom(drag.start, lngLat)));
+      ensureDraftLayer(map, propsRef.current.accentColor).setData(areaFeature(boxFrom(drag.start, lngLat)));
     };
     const endDraft = (point: maplibregl.Point | null) => {
       const drag = dragRef.current;
       dragRef.current = null;
       if (!drag) return;
-      if (map.getSource("draft-area")) ensureDraftLayer(map).setData(EMPTY_COLLECTION);
+      if (map.getSource("draft-area")) ensureDraftLayer(map, propsRef.current.accentColor).setData(EMPTY_COLLECTION);
       const end = point ?? map.project(drag.last);
       if (Math.abs(end.x - drag.startPx.x) < MIN_DRAG_PX && Math.abs(end.y - drag.startPx.y) < MIN_DRAG_PX) {
         return;
@@ -220,6 +243,7 @@ export default function MapCanvas(props: MapCanvasProps) {
     if (!map || !ready) return;
     const current = map.getStyle() as StyleSpecification | undefined;
     if (current && current.name !== style.name) {
+      styleReadyRef.current = false;
       setReady(false);
       map.setStyle(style, { diff: false });
     }
@@ -237,13 +261,13 @@ export default function MapCanvas(props: MapCanvasProps) {
       map.dragPan.enable();
       map.touchZoomRotate.enable();
       dragRef.current = null;
-      if (map.getSource("draft-area")) ensureDraftLayer(map).setData(EMPTY_COLLECTION);
+      if (map.getSource("draft-area")) ensureDraftLayer(map, propsRef.current.accentColor).setData(EMPTY_COLLECTION);
     }
   }, [props.drawing]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready) return;
+    if (!map || !ready || !styleReadyRef.current) return;
 
     let source = map.getSource("embeddings") as maplibregl.GeoJSONSource | undefined;
     if (!source) {
@@ -275,14 +299,7 @@ export default function MapCanvas(props: MapCanvasProps) {
             2,
             0.6,
           ],
-          "circle-stroke-color": [
-            "case",
-            ["==", ["get", "q"], 1],
-            "#ffffff",
-            ["any", ["==", ["get", "sel"], 1], ["==", ["get", "hov"], 1], ["==", ["get", "pin"], 1]],
-            ACCENT,
-            "rgba(0,0,0,0.55)",
-          ],
+          "circle-stroke-color": pointStrokeColor(props.accentColor),
         },
       });
     }
@@ -336,7 +353,7 @@ export default function MapCanvas(props: MapCanvasProps) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready) return;
+    if (!map || !ready || !styleReadyRef.current) return;
     const area = props.area;
     if (!area) {
       if (map.getLayer("area-fill")) map.removeLayer("area-fill");
@@ -356,7 +373,7 @@ export default function MapCanvas(props: MapCanvasProps) {
           id: "area-fill",
           type: "fill",
           source: "area",
-          paint: { "fill-color": ACCENT, "fill-opacity": 0.07 },
+          paint: { "fill-color": props.accentColor, "fill-opacity": 0.08 },
         },
         beforeId,
       );
@@ -368,7 +385,7 @@ export default function MapCanvas(props: MapCanvasProps) {
           type: "line",
           source: "area",
           paint: {
-            "line-color": ACCENT,
+            "line-color": props.accentColor,
             "line-width": 1.8,
             "line-dasharray": [2, 2],
             "line-opacity": 0.95,
@@ -378,6 +395,18 @@ export default function MapCanvas(props: MapCanvasProps) {
       );
     }
   }, [props.area, ready]);
+
+  // Theme switch: recolor layers that already exist.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !styleReadyRef.current) return;
+    const accent = props.accentColor;
+    if (map.getLayer(POINT_LAYER)) map.setPaintProperty(POINT_LAYER, "circle-stroke-color", pointStrokeColor(accent));
+    if (map.getLayer("area-fill")) map.setPaintProperty("area-fill", "fill-color", accent);
+    if (map.getLayer("area-outline")) map.setPaintProperty("area-outline", "line-color", accent);
+    if (map.getLayer("draft-area-fill")) map.setPaintProperty("draft-area-fill", "fill-color", accent);
+    if (map.getLayer("draft-area-outline")) map.setPaintProperty("draft-area-outline", "line-color", accent);
+  }, [props.accentColor, ready]);
 
   // Camera requests: fit to a searched/pasted area, or fly to a point.
   useEffect(() => {

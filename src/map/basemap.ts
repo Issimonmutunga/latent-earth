@@ -22,12 +22,15 @@ export const darkBasemap: StyleSpecification = {
       id: "basemap",
       type: "raster",
       source: "basemap",
+      // Inverting brightness and rotating hue turns standard OSM tiles into
+      // a true dark map (dark land, light roads) rather than a grey wash.
       paint: {
         "raster-opacity": 1,
-        "raster-saturation": -0.6,
-        "raster-contrast": 0.05,
-        "raster-brightness-min": 0.12,
-        "raster-brightness-max": 0.55,
+        "raster-hue-rotate": 180,
+        "raster-brightness-min": 0.9,
+        "raster-brightness-max": 0.08,
+        "raster-saturation": -0.7,
+        "raster-contrast": 0.1,
       },
     },
   ],
@@ -50,7 +53,7 @@ export const lightBasemap: StyleSpecification = {
       id: "basemap",
       type: "raster",
       source: "basemap",
-      paint: { "raster-opacity": 1, "raster-saturation": -0.2 },
+      paint: { "raster-opacity": 1, "raster-saturation": -0.35, "raster-contrast": -0.05 },
     },
   ],
 };
@@ -81,7 +84,7 @@ export const activeBasemaps = {
 
 export const BASEMAP_LABELS: Record<BasemapKey, string> = {
   dark: "Dark",
-  light: "Streets",
+  light: "Map",
   satellite: "Satellite",
 };
 

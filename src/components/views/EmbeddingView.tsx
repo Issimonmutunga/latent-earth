@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useWorkspace } from "../../app/workspace.tsx";
 import { usePointColors } from "../../app/pointColors.ts";
 import EmbeddingScatter from "../../visualization/EmbeddingScatter.tsx";
-import { NEUTRAL_POINT } from "../../visualization/colors.ts";
+import { useThemeColors } from "../../app/theme.tsx";
 
 /** Embedding space view: PCA/UMAP scatter, linked to the map. */
 export default function EmbeddingView() {
   const { state, selectPoint, setHoveredPoint } = useWorkspace();
+  const colors = useThemeColors();
   const pointColors = usePointColors();
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -37,7 +38,8 @@ export default function EmbeddingView() {
         <EmbeddingScatter
           points={state.sample.points}
           pointColors={pointColors}
-          neutralColor={NEUTRAL_POINT}
+          neutralColor={colors.neutral}
+          accentColor={colors.accent}
           selectedPointId={state.selectedPointId}
           hoveredPointId={state.hoveredPointId}
           queryPointId={state.queryPointId}

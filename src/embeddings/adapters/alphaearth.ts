@@ -5,7 +5,8 @@ import type {
   SourceStatus,
 } from "../../types/embedding.ts";
 import { ALPHAEARTH, getGeeProjectId, isConfigured, resolveYear } from "../gee/config.ts";
-import { getEarthEngineApi } from "../gee/connection.ts";
+import { describeEarthEngineError, getEarthEngineApi } from "../gee/connection.ts";
+import type { EarthEngineSampleResult } from "../../types/earthengine.ts";
 import { buildSampleGrid, featuresToEmbeddingPoints } from "../gee/sampling.ts";
 
 const DEFAULT_SAMPLE_SIZE = 500;
@@ -33,7 +34,7 @@ export const alphaEarthSource: EmbeddingSource = {
     const api = getEarthEngineApi();
     if (!api) {
       throw new Error(
-        "Connect to Google Earth Engine first (Source → Connect), then retry the retrieve.",
+        "Sign in with Google to read AlphaEarth from Earth Engine, then retrieve again.",
       );
     }
 
@@ -53,9 +54,14 @@ export const alphaEarthSource: EmbeddingSource = {
       grid.map((point) => api.Feature(api.Geometry.Point([point.lon, point.lat]), { i: point.i })),
     );
 
-    const sampled = await image
-      .sampleRegions(samples, null, ALPHAEARTH.spatialResolution, "EPSG:4326", null, true)
-      .getInfo();
+    const sampled = await new Promise<EarthEngineSampleResult>((resolve, reject) => {
+      image
+        .sampleRegions(samples, null, ALPHAEARTH.spatialResolution, "EPSG:4326", null, true)
+        .getInfo((result, error) => {
+          if (error || !result) reject(new Error(describeEarthEngineError(error ?? "Earth Engine returned no data.")));
+          else resolve(result);
+        });
+    });
 
     const points = featuresToEmbeddingPoints(sampled.features, year);
     return {

@@ -10,7 +10,12 @@ import type {
 } from "../types/embedding.ts";
 import { embeddingRegistry } from "../embeddings/registry/sources.ts";
 import { createMockSource } from "../embeddings/mock/mockSource.ts";
-import { connectEarthEngine, getEarthEngineStatus } from "../embeddings/gee/connection.ts";
+import {
+  connectEarthEngine,
+  getEarthEngineError,
+  getEarthEngineStatus,
+  prepareEarthEngine,
+} from "../embeddings/gee/connection.ts";
 import { kmeans } from "../analysis/clustering.ts";
 
 /**
@@ -300,6 +305,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const selectSource = useCallback((source: EmbeddingSource) => {
     dispatch({ type: "select-source", source });
+    // Load Google sign-in now so the later Retrieve click can open its popup.
+    if (source.providerConnection === "earth-engine") void prepareEarthEngine().catch(() => {});
   }, []);
 
   const setArea = useCallback((area: BoundingBox, options?: { fly?: boolean }) => {
@@ -315,11 +322,19 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const retrieveSample = useCallback(async () => {
     const { source, area, sampleSize, year, status } = stateRef.current;
     if (!source || !area || status.kind === "retrieving") return;
+    // Sign in on the researcher's behalf so Retrieve is a single click. This
+    // must start before any await so Google's popup counts as part of the click.
+    const needsSignIn =
+      source.providerConnection === "earth-engine" && getEarthEngineStatus() !== "connected";
+    const signIn = needsSignIn ? connectEarthEngine() : null;
     dispatch({ type: "retrieve-start", requested: sampleSize });
     try {
-      if (source.providerConnection === "earth-engine" && getEarthEngineStatus() === "idle") {
-        // Connect on the researcher's behalf so Retrieve is a single click.
-        await connectEarthEngine();
+      if (signIn && !(await signIn)) {
+        dispatch({
+          type: "retrieve-error",
+          message: getEarthEngineError() ?? "Sign in with Google to read AlphaEarth, then retrieve again.",
+        });
+        return;
       }
       const result = await source.query({
         bounds: area,

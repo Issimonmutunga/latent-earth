@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useWorkspace } from "../app/workspace.tsx";
 import { getViewBounds } from "../map/mapHandle.ts";
+import { areaKm2 } from "./AreaPanel.tsx";
 import { signInEarthEngine, type EarthEngineStatus } from "../embeddings/gee/connection.ts";
 import type { StepId } from "../app/workspace.tsx";
 
@@ -51,7 +52,7 @@ export default function NextStep({ eeStatus, onOpenStep, onToggleDrawing }: Next
       </button>
     );
   } else if (source.providerConnection === "earth-engine" && eeStatus === "auth-pending") {
-    text = `Sign in with Google to let ${source.name} read Earth Engine data.`;
+    text = `One more click: sign in with Google so ${source.name} can read Earth Engine data.`;
     actions = (
       <button
         type="button"
@@ -87,14 +88,28 @@ export default function NextStep({ eeStatus, onOpenStep, onToggleDrawing }: Next
       </>
     );
   } else if (!sample || sampleIsStale) {
-    text = sampleIsStale
+    const needsSignIn = source.providerConnection === "earth-engine" && eeStatus !== "connected";
+    // Grid spacing finer than the source's pixels just samples the same pixel repeatedly.
+    const spacingM = Math.sqrt((areaKm2(area) * 1e6) / sampleSize);
+    const tooSmall = spacingM < source.spatialResolution;
+    text = tooSmall
+      ? `This area is tiny: ${sampleSize.toLocaleString()} points would sit ${spacingM < 1 ? "<1" : spacingM.toFixed(0)} m apart, finer than ${source.name}'s ${source.spatialResolution} m pixels, so many would repeat. Draw a larger area or use fewer points.`
+      : sampleIsStale
       ? "Your settings changed since the last retrieval."
-      : `Ready — retrieve ${sampleSize.toLocaleString()} embeddings from this area.`;
+      : needsSignIn
+        ? `Ready — sign in with Google, then ${sampleSize.toLocaleString()} embeddings load from this area.`
+        : `Ready — retrieve ${sampleSize.toLocaleString()} embeddings from this area.`;
     actions = (
       <>
         <button type="button" className="btn btn--primary btn--small" onClick={() => void retrieveSample()}>
-          {sampleIsStale ? "Retrieve again" : "Retrieve"} <kbd>R</kbd>
+          {needsSignIn ? "Sign in & retrieve" : sampleIsStale ? "Retrieve again" : tooSmall ? "Retrieve anyway" : "Retrieve"}{" "}
+          <kbd>R</kbd>
         </button>
+        {tooSmall && (
+          <button type="button" className="btn btn--small" onClick={onToggleDrawing}>
+            Redraw <kbd>D</kbd>
+          </button>
+        )}
         <button type="button" className="btn btn--small" onClick={() => onOpenStep("sample")}>
           Adjust
         </button>

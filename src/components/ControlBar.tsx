@@ -137,8 +137,8 @@ export default function ControlBar() {
       {status.kind === "error" && (
         <div className="message message--error" role="alert">
           <span>{status.message}</span>
-          <button type="button" className="btn btn--ghost" onClick={onRetrieve} disabled={!canRetrieve}>
-            Retry
+          <button type="button" className="btn btn--primary btn--small" onClick={onRetrieve} disabled={!canRetrieve}>
+            {source?.providerConnection === "earth-engine" && eeStatus !== "connected" ? "Sign in & retry" : "Retry"}
           </button>
         </div>
       )}
