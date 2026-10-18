@@ -17,6 +17,26 @@ npm run test       # run unit tests (vitest)
 npm run typecheck  # TypeScript only
 ```
 
+## Using the app
+
+The bar at the top walks you through three steps, and the line under it always
+says what to do next:
+
+1. **Choose source** — the embedding model to read.
+2. **Pick area** — drag a box on the map, search a place, use the current view,
+   or paste `west, south, east, north`.
+3. **Retrieve** — loads a grid of real embeddings (pick the size and year in the
+   `500 pts` menu).
+
+Then explore: hover points for a tooltip, click one to inspect it, **Find
+similar places**, pin up to 5 points to compare, or **Find clusters**. Use
+*Color points by* (bottom-left) to switch between clusters, similarity and
+target. **+ Target** attaches real ground truth — a CSV (`lat`, `lon`, value
+column) or GeoJSON of points, or labels you type in the inspector — and the
+Analysis view reports how well the embedding predicts it (k-NN, leave-one-out).
+**Export** downloads CSV/GeoJSON or copies a session summary. Press `?` for
+keyboard shortcuts (`D` draw, `R` retrieve, `1`–`4` views, `B` basemap, `Esc`).
+
 ## Architecture
 
 - React + TypeScript + Vite

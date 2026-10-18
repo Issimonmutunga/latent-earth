@@ -45,18 +45,33 @@ export interface EmbeddingSource {
   temporalCoverage: string;
   status: SourceStatus;
   providerConnection?: "earth-engine";
+  /** Inclusive year range the researcher can pick from, when the source is annual. */
+  availableYears?: { first: number; last: number };
   query(request: EmbeddingQuery): Promise<EmbeddingResult>;
 }
 
 export type ViewMode = "map" | "embedding" | "similarity" | "analysis";
 
-/** A real target/label layer attached by the researcher (custom target). */
+/** One real ground-truth observation supplied by the researcher. */
+export interface TargetRow {
+  lat: number;
+  lon: number;
+  label?: string;
+  value?: number;
+}
+
+/**
+ * A real target/label layer attached by the researcher. Rows keep their own
+ * coordinates so the target survives re-retrieval: they are joined to the
+ * nearest sampled point whenever the sample changes.
+ */
 export interface Target {
   id: string;
   name: string;
-  /** label -> one set of labeled points; value -> numeric ground truth per point */
+  /** label -> class names; value -> numeric ground truth */
   kind: "label" | "value";
-  points: Array<{ pointId: string; label?: string; value?: number }>;
+  origin: "upload" | "manual";
+  rows: TargetRow[];
 }
 
 export type RetrievalStatus =

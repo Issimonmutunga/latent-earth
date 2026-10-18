@@ -19,6 +19,7 @@ export const alphaEarthSource: EmbeddingSource = {
   spatialResolution: 10,
   temporalCoverage: "2017 – present",
   providerConnection: "earth-engine",
+  availableYears: { first: ALPHAEARTH.firstYear, last: ALPHAEARTH.lastYear },
   get status(): SourceStatus {
     return isConfigured() ? "available" : "integration-pending";
   },

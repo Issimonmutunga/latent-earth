@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useWorkspace } from "./workspace.tsx";
+import { useTargetModel } from "./targetModel.tsx";
 import { rankBySimilarity } from "../analysis/similarity.ts";
 import { categorical, viridis } from "../visualization/colors.ts";
 
@@ -11,6 +12,7 @@ import { categorical, viridis } from "../visualization/colors.ts";
 export function usePointColors(): Map<string, string> | null {
   const { state } = useWorkspace();
   const { sample, queryPointId, clusters, colorBasis } = state;
+  const model = useTargetModel();
 
   return useMemo(() => {
     if (!sample) return null;
@@ -33,6 +35,20 @@ export function usePointColors(): Map<string, string> | null {
       return out;
     }
 
+    if (colorBasis === "target" && model?.predicted) {
+      const out = new Map<string, string>();
+      if (model.kind === "label") {
+        const index = new Map(model.classes.map((c, i) => [c, i]));
+        for (const [id, label] of model.predicted) out.set(id, categorical(index.get(String(label)) ?? 0));
+      } else if (model.range) {
+        const span = Math.max(1e-9, model.range.max - model.range.min);
+        for (const [id, value] of model.predicted) {
+          out.set(id, viridis((Number(value) - model.range.min) / span));
+        }
+      }
+      return out;
+    }
+
     return null;
-  }, [sample, clusters, colorBasis, queryPointId]);
+  }, [sample, clusters, colorBasis, queryPointId, model]);
 }

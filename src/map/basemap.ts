@@ -55,9 +55,34 @@ export const lightBasemap: StyleSpecification = {
   ],
 };
 
+/** Keyless Esri World Imagery — real satellite context for Earth observation. */
+export const satelliteBasemap: StyleSpecification = {
+  version: 8,
+  name: "Latent Earth satellite",
+  sources: {
+    basemap: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
+      maxzoom: 19,
+    },
+  },
+  layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+};
+
 export const activeBasemaps = {
   dark: darkBasemap,
   light: lightBasemap,
+  satellite: satelliteBasemap,
 } as const;
+
+export const BASEMAP_LABELS: Record<BasemapKey, string> = {
+  dark: "Dark",
+  light: "Streets",
+  satellite: "Satellite",
+};
 
 export type BasemapKey = keyof typeof activeBasemaps;

@@ -9,7 +9,7 @@ const BINS = 12;
 
 /** Similarity view: one query point, every other point colored by distance to it. */
 export default function SimilarityView() {
-  const { state, selectPoint, setQueryPoint, setHoveredPoint } = useWorkspace();
+  const { state, selectPoint, setQueryPoint, setHoveredPoint, flyToPoint } = useWorkspace();
   const pointColors = usePointColors() ?? (state.queryPointId ? new Map<string, string>() : null);
 
   const query = useMemo(
@@ -42,10 +42,25 @@ export default function SimilarityView() {
   if (!state.sample || !query || !ranked || !histogram) {
     return (
       <div className="view-panel view-panel__empty">
-        <p>Click any point on the map or in embedding space to set it as the similarity query.</p>
+        <p>Pick a query point: click any point on the map or below, then choose “Find similar places”.</p>
         <p className="popover-copy popover-copy--muted">
           “What places look similar to this location according to the embedding?”
         </p>
+        {state.selectedPointId ? (
+          <button type="button" className="btn btn--primary" onClick={() => setQueryPoint(state.selectedPointId)}>
+            Use {state.selectedPointId} as query
+          </button>
+        ) : (
+          state.sample && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setQueryPoint(state.sample!.points[0].id)}
+            >
+              Start with the first point
+            </button>
+          )
+        )}
       </div>
     );
   }
@@ -119,6 +134,10 @@ export default function SimilarityView() {
                   type="button"
                   className="rank-list__item"
                   onClick={() => selectPoint(point.id)}
+                  onMouseEnter={() => setHoveredPoint(point.id)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                  onDoubleClick={() => flyToPoint(point.id)}
+                  title="Click to inspect · double-click to zoom to it on the map"
                 >
                   <span className="rank-list__id">{point.id}</span>
                   <span className="rank-list__val">{similarity.toFixed(3)}</span>
@@ -135,6 +154,10 @@ export default function SimilarityView() {
                   type="button"
                   className="rank-list__item"
                   onClick={() => selectPoint(point.id)}
+                  onMouseEnter={() => setHoveredPoint(point.id)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                  onDoubleClick={() => flyToPoint(point.id)}
+                  title="Click to inspect · double-click to zoom to it on the map"
                 >
                   <span className="rank-list__id">{point.id}</span>
                   <span className="rank-list__val">{similarity.toFixed(3)}</span>

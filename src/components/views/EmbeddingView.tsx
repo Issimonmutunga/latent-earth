@@ -6,7 +6,7 @@ import { NEUTRAL_POINT } from "../../visualization/colors.ts";
 
 /** Embedding space view: PCA/UMAP scatter, linked to the map. */
 export default function EmbeddingView() {
-  const { state, selectPoint, setQueryPoint, setHoveredPoint } = useWorkspace();
+  const { state, selectPoint, setHoveredPoint } = useWorkspace();
   const pointColors = usePointColors();
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -27,8 +27,9 @@ export default function EmbeddingView() {
       {infoOpen && (
         <p className="popover-copy view-panel__info">
           PCA finds the directions of greatest variation in the embedding vectors and projects them
-          into two dimensions for viewing. Hover or click a point to highlight its location on the
-          map.
+          into two dimensions for viewing. Points that sit close together here have similar
+          embeddings, even if they are far apart on the map. Hover a point to see where it is; click
+          it to inspect it.
         </p>
       )}
 
@@ -40,10 +41,7 @@ export default function EmbeddingView() {
           selectedPointId={state.selectedPointId}
           hoveredPointId={state.hoveredPointId}
           queryPointId={state.queryPointId}
-          onSelectPoint={(id) => {
-            selectPoint(id);
-            if (id) setQueryPoint(id);
-          }}
+          onSelectPoint={selectPoint}
           onHoverPoint={(id) => setHoveredPoint(id)}
         />
       ) : (
