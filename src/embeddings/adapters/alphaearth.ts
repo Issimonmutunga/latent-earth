@@ -51,7 +51,14 @@ export const alphaEarthSource: EmbeddingSource = {
 
     const sampled = await new Promise<EarthEngineSampleResult>((resolve, reject) => {
       image
-        .sampleRegions(samples, null, ALPHAEARTH.spatialResolution, "EPSG:4326", null, true)
+        // Named arguments: newer Earth Engine clients reject null placeholders
+        // for optional parameters such as tileScale.
+        .sampleRegions({
+          collection: samples,
+          scale: ALPHAEARTH.spatialResolution,
+          projection: "EPSG:4326",
+          geometries: true,
+        })
         .getInfo((result, error) => {
           if (error || !result) reject(new Error(describeEarthEngineError(error ?? "Earth Engine returned no data.")));
           else resolve(result);

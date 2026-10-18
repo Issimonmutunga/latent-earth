@@ -13,14 +13,14 @@ export interface EarthEngineFeatureCollection {
 
 export interface EarthEngineImage {
   select(bands: string[]): EarthEngineImage;
-  sampleRegions(
-    collection: EarthEngineFeatureCollection,
-    properties: Record<string, unknown> | null,
-    scale: number,
-    projection: string,
-    tileScale: number | null,
-    geometries: boolean,
-  ): EarthEngineFeatureCollection;
+  sampleRegions(args: {
+    collection: EarthEngineFeatureCollection;
+    properties?: string[];
+    scale?: number;
+    projection?: string;
+    tileScale?: number;
+    geometries?: boolean;
+  }): EarthEngineFeatureCollection;
 }
 
 export interface EarthEngineImageCollection extends EarthEngineImage {
