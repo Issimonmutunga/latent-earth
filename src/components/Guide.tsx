@@ -13,7 +13,8 @@ const SECTIONS: Array<{ id: GuideSection; label: string }> = [
 const SHORTCUTS: Array<[string, string]> = [
   ["D", "Draw an area"],
   ["R", "Retrieve sample"],
-  ["1 – 4", "Map · Embedding · Similarity · Analysis"],
+  ["1 – 4", "Results tabs: Inspect · Embedding · Similarity · Analysis"],
+  ["[  ]", "Show / hide the left and right panels"],
   ["B", "Cycle basemap"],
   ["Esc", "Cancel / back to map / close"],
   ["?", "Open this guide"],
@@ -124,31 +125,37 @@ export default function Guide() {
           {section === "quickstart" && (
             <article>
               <h2>Quick start</h2>
-              <p>The bar at the top walks you through it, and the line beneath it always says what to do next.</p>
+              <p>
+                The screen works like a desktop GIS: the <strong>workflow panel</strong> on the left
+                walks you through each step (its <em>Next step</em> card always says what to do), the{" "}
+                <strong>map</strong> is in the middle with search and drawing tools, and the{" "}
+                <strong>results panel</strong> on the right shows what you find. The status bar at the
+                bottom shows what's loaded and the coordinates under your cursor.
+              </p>
               <ol className="guide__steps">
                 <li>
-                  <strong>Choose source → AlphaEarth.</strong> The first time, paste your Earth Engine
+                  <strong>Data source → AlphaEarth.</strong> The first time, paste your Earth Engine
                   project ID (see <button type="button" className="link-btn link-btn--inline" onClick={() => go("setup")}>Set up Earth Engine</button>).
                 </li>
                 <li>
-                  <strong>Pick an area.</strong> Drag a box on the map (<kbd>D</kbd>), search a place,
-                  use what's on screen, or paste <code>west, south, east, north</code>. Start small —
-                  a town or a valley, not a country.
+                  <strong>Pick an area.</strong> Use the draw tool on the map (<kbd>D</kbd>) and drag
+                  a box, search a place in the map's search box and choose <em>Use as area</em>, use
+                  what's on screen, or paste <code>west, south, east, north</code> in step 2. Start
+                  small — a town or a valley, not a country.
                 </li>
                 <li>
                   <strong>Retrieve</strong> (<kbd>R</kbd>). The first time, a Google window asks you
                   to sign in and allow read-only Earth Engine access. 500 points load in a few
-                  seconds. Use the <em>500 pts</em> menu to change the number of points or the year
-                  (2017 onwards).
+                  seconds. Step 3 also sets the number of points and the year (2017 onwards).
                 </li>
                 <li>
-                  <strong>Explore.</strong> Hover points for details, click one to inspect it, press{" "}
-                  <em>Find clusters</em>, or <em>Find similar places</em>. Switch views with{" "}
-                  <kbd>1</kbd>–<kbd>4</kbd>.
+                  <strong>Explore.</strong> Hover points for details and click one to inspect it in
+                  the results panel. Try <em>Find natural groupings</em> or <em>Find similar
+                  places</em>, and switch result tabs with <kbd>1</kbd>–<kbd>4</kbd>.
                 </li>
                 <li>
-                  <strong>Test a hypothesis</strong> (optional). <em>+ Target</em> → upload ground
-                  truth or label a few points by hand, then open <em>Analysis</em>.
+                  <strong>Test a hypothesis</strong> (optional). In <em>Ground truth</em>, upload data
+                  or label a few points by hand, then open the <em>Analysis</em> tab.
                 </li>
                 <li>
                   <strong>Export</strong> your sample and results as CSV or GeoJSON.
@@ -202,7 +209,8 @@ export default function Guide() {
                   <Ext href="https://console.cloud.google.com/">Google Cloud console</Ext>.
                 </li>
                 <li>
-                  <strong>Paste it into Latent Earth.</strong> <em>Choose source → AlphaEarth</em>,
+                  <strong>Paste it into Latent Earth.</strong> In step 1 <em>Data source</em>, choose{" "}
+                  <em>AlphaEarth</em>,
                   paste the ID and press <em>Save</em>. It's remembered in this browser.
                 </li>
                 <li>
@@ -232,9 +240,20 @@ export default function Guide() {
           {section === "using" && (
             <article>
               <h2>Using the app</h2>
-              <h3>The four views</h3>
+              <h3>Map tools</h3>
               <ul>
-                <li><strong>Map</strong> <kbd>1</kbd> — sampled points in geographic space.</li>
+                <li><strong>Search places</strong> — fly to a place, or make it your area.</li>
+                <li><strong>Draw area</strong> <kbd>D</kbd> — drag a box; <kbd>Esc</kbd> cancels.</li>
+                <li><strong>Use current view</strong> — make what's on screen your area.</li>
+                <li><strong>Zoom to area / Zoom to points</strong> — jump back to your data.</li>
+              </ul>
+
+              <h3>Results tabs</h3>
+              <ul>
+                <li>
+                  <strong>Inspect</strong> <kbd>1</kbd> — an overview of the sample, or the point you
+                  clicked.
+                </li>
                 <li>
                   <strong>Embedding</strong> <kbd>2</kbd> — the same points arranged by how similar
                   their embeddings are (a PCA projection). Close together here = alike according to the
@@ -246,18 +265,20 @@ export default function Guide() {
                 </li>
                 <li><strong>Analysis</strong> <kbd>4</kbd> — PCA, clustering, and target tests.</li>
               </ul>
-              <p>All views share the same points and colors, and hovering in one highlights the point in the others.</p>
+              <p>The map and every tab share the same points and colors, and hovering in one highlights the point in the others.</p>
 
-              <h3>Color points by</h3>
+              <h3>Layers</h3>
               <p>
-                The panel bottom-left switches the coloring: <em>Plain</em>, <em>Clusters</em>{" "}
+                Below the workflow, <em>Layers</em> lets you show or hide the points and area, switch
+                the basemap (Dark, Map, Satellite) and choose <em>Color by</em>: <em>Plain</em>,{" "}
+                <em>Clusters</em>{" "}
                 (k-means — pick k from 3 to 6), <em>Similarity</em> to your query point, or{" "}
-                <em>Target</em> predictions.
+                <em>Target</em> predictions. The legend appears in the map's bottom-left corner.
               </p>
 
               <h3>Inspecting a point</h3>
               <p>
-                Click any point to open the inspector: coordinates, cluster, similarity, and its 64
+                Click any point to open it in the <em>Inspect</em> tab: coordinates, cluster, similarity, and its 64
                 embedding values. From there you can <em>Find similar places</em>, <em>Zoom to</em>{" "}
                 it, <em>Pin</em> up to 5 points to compare them, or give it a label.
               </p>
@@ -282,7 +303,7 @@ export default function Guide() {
 
               <h3>Exporting</h3>
               <p>
-                <em>Export</em> (top right) downloads the sample as CSV (with all 64 values) or GeoJSON
+                <em>Export</em> (in the header) downloads the sample as CSV (with all 64 values) or GeoJSON
                 (opens in QGIS), including clusters, similarity and target columns. <em>Copy session
                 summary</em> gives a citable text record of the source, area, year and methods.
               </p>

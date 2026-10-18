@@ -3,13 +3,14 @@ import { useWorkspace, MAX_PINNED } from "../app/workspace.tsx";
 import { useTargetModel } from "../app/targetModel.tsx";
 import { formatTargetValue, usePointAnnotations } from "../app/annotations.ts";
 import { cosineSimilarity } from "../analysis/similarity.ts";
+import { formatArea } from "./AreaPanel.tsx";
+import { DEFAULT_K } from "./layout/LayersSection.tsx";
 import { categorical } from "../visualization/colors.ts";
 import type { EmbeddingPoint } from "../types/embedding.ts";
 
-/** Slide-in detail panel for the selected point. */
-export default function Inspector() {
-  const { state, selectPoint, setQueryPoint, toggleInspector, togglePin, flyToPoint, labelPoint, notify } =
-    useWorkspace();
+/** Results panel "Inspect" tab: the selected point, or an overview of the sample. */
+export default function InspectTab() {
+  const { state, selectPoint, setQueryPoint, togglePin, flyToPoint, labelPoint, notify } = useWorkspace();
   const annotations = usePointAnnotations();
   const model = useTargetModel();
   const [showVector, setShowVector] = useState(false);
@@ -23,8 +24,6 @@ export default function Inspector() {
         .filter((p): p is EmbeddingPoint => Boolean(p)),
     [state.pinnedIds, state.sample],
   );
-
-  if (!state.inspectorOpen) return null;
 
   const isQuery = point && state.queryPointId === point.id;
   const isPinned = point && state.pinnedIds.includes(point.id);
@@ -45,19 +44,17 @@ export default function Inspector() {
   }
 
   return (
-    <aside className="inspector" aria-label="Point inspector">
-      <div className="inspector__head">
-        <span className="inspector__title">{point ? point.id : "Inspector"}</span>
-        <button type="button" className="btn btn--ghost btn--icon" aria-label="Close inspector" onClick={toggleInspector}>
-          ✕
-        </button>
-      </div>
-
+    <div className="inspector" aria-label="Point inspector">
       {!point ? (
-        <p className="popover-copy popover-copy--muted">
-          Click a point on the map or in embedding space to inspect it.
-        </p>
+        <SampleOverview />
       ) : (
+        <>
+        <div className="inspector__head">
+          <span className="inspector__title">{point.id}</span>
+          <button type="button" className="btn btn--ghost btn--small" onClick={() => selectPoint(null)}>
+            ← Overview
+          </button>
+        </div>
         <div className="inspector__body">
           <div className="inspector__actions">
             <button
@@ -168,6 +165,7 @@ export default function Inspector() {
             </pre>
           )}
         </div>
+        </>
       )}
 
       {pinned.length > 0 && (
@@ -226,7 +224,7 @@ export default function Inspector() {
           </ul>
         </div>
       )}
-    </aside>
+    </div>
   );
 }
 
@@ -257,6 +255,96 @@ function VectorStrip({ vector }: { vector: Float32Array }) {
           style={{ opacity: 0.2 + 0.8 * ((v - min) / span) }}
         />
       ))}
+    </div>
+  );
+}
+
+/** What the Inspect tab shows with nothing selected: the sample at a glance. */
+function SampleOverview() {
+  const { state, runClustering, setView, setOpenStep } = useWorkspace();
+  const { sample, source, area, clusters, target } = state;
+
+  if (!sample) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state__icon" aria-hidden>
+          ◎
+        </div>
+        <h3>Results appear here</h3>
+        <p>
+          Follow the workflow on the left: choose a data source, pick an area and retrieve a sample.
+          Then click any point on the map to inspect it.
+        </p>
+      </div>
+    );
+  }
+
+  const year = sample.query.date ?? sample.points[0]?.date;
+  return (
+    <div className="overview">
+      <div className="block-title">Sample</div>
+      <div className="stat-grid">
+        <div className="stat">
+          <span className="stat__value">{sample.points.length.toLocaleString()}</span>
+          <span className="stat__label">points</span>
+        </div>
+        <div className="stat">
+          <span className="stat__value">{sample.points[0]?.vector.length ?? "—"}</span>
+          <span className="stat__label">dimensions</span>
+        </div>
+        <div className="stat">
+          <span className="stat__value">{area ? formatArea(area) : "—"}</span>
+          <span className="stat__label">area</span>
+        </div>
+        <div className="stat">
+          <span className="stat__value">{year ?? "—"}</span>
+          <span className="stat__label">{source?.name ?? sample.sourceId}</span>
+        </div>
+      </div>
+
+      <div className="block-title">What next?</div>
+      <div className="action-list">
+        <button type="button" className="action" onClick={() => runClustering(clusters?.k ?? DEFAULT_K)}>
+          <span className="action__icon" aria-hidden>
+            ◍
+          </span>
+          <span>
+            <strong>{clusters ? "Re-run clusters" : "Find natural groupings"}</strong>
+            <span>Color the map by k-means clusters of the embedding.</span>
+          </span>
+        </button>
+        <div className="action action--static">
+          <span className="action__icon" aria-hidden>
+            ◎
+          </span>
+          <span>
+            <strong>Find similar places</strong>
+            <span>Click a point on the map, then “Find similar places”.</span>
+          </span>
+        </div>
+        <button type="button" className="action" onClick={() => setView("embedding")}>
+          <span className="action__icon" aria-hidden>
+            ⁘
+          </span>
+          <span>
+            <strong>See embedding space</strong>
+            <span>Points arranged by how alike they are, not where they are.</span>
+          </span>
+        </button>
+        <button type="button" className="action" onClick={() => (target ? setView("analysis") : setOpenStep("target"))}>
+          <span className="action__icon" aria-hidden>
+            ✓
+          </span>
+          <span>
+            <strong>{target ? "Test against your ground truth" : "Add ground truth"}</strong>
+            <span>
+              {target
+                ? "See how well the embedding predicts it."
+                : "Upload or hand-label data to test for a signal."}
+            </span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -4,25 +4,35 @@ import { TargetModelProvider } from "./targetModel.tsx";
 import { usePointColors } from "./pointColors.ts";
 import { formatTargetValue, usePointAnnotations } from "./annotations.ts";
 import MapCanvas, { type PointDescription } from "../map/MapCanvas.tsx";
-import ControlBar from "../components/ControlBar.tsx";
-import ViewSwitcher from "../ui/ViewSwitcher.tsx";
-import Inspector from "../components/Inspector.tsx";
-import ColorPanel from "../components/ColorPanel.tsx";
-import TopBar from "../components/TopBar.tsx";
+import AppHeader from "../components/layout/AppHeader.tsx";
+import WorkflowPanel from "../components/layout/WorkflowPanel.tsx";
+import ResultsPanel, { RESULT_TABS } from "../components/layout/ResultsPanel.tsx";
+import StatusBar from "../components/layout/StatusBar.tsx";
+import type { LayerVisibility } from "../components/layout/LayersSection.tsx";
+import MapToolbar, { DrawBanner } from "../components/MapToolbar.tsx";
+import MapLegend from "../components/MapLegend.tsx";
 import Guide from "../components/Guide.tsx";
 import Toast from "../ui/Toast.tsx";
 import ErrorBoundary from "../ui/ErrorBoundary.tsx";
-import EmbeddingView from "../components/views/EmbeddingView.tsx";
-import SimilarityView from "../components/views/SimilarityView.tsx";
-import AnalysisView from "../components/views/AnalysisView.tsx";
 import { ThemeProvider, useTheme, THEME_COLORS } from "./theme.tsx";
 import { setMapInstance } from "../map/mapHandle.ts";
 import { BASEMAP_LABELS, type BasemapKey } from "../map/basemap.ts";
-import type { ViewMode } from "../types/embedding.ts";
 
 const BASEMAP_ORDER: BasemapKey[] = ["dark", "light", "satellite"];
 const GUIDE_SEEN_KEY = "latent-earth:guide-seen";
-const VIEW_KEYS: Record<string, ViewMode> = { "1": "map", "2": "embedding", "3": "similarity", "4": "analysis" };
+/** Below this width the side panels become drawers over the map. */
+const COMPACT_QUERY = "(max-width: 900px)";
+
+function useCompact(): boolean {
+  const [compact, setCompact] = useState(() => window.matchMedia(COMPACT_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(COMPACT_QUERY);
+    const onChange = () => setCompact(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return compact;
+}
 
 export default function App() {
   return (
@@ -46,7 +56,9 @@ function isTyping(target: EventTarget | null): boolean {
 
 function Workspace() {
   const api = useWorkspace();
-  const { state, setArea, selectPoint, setHoveredPoint, setView, startDrawing, stopDrawing, retrieveSample, notify, openGuide } = api;
+  const { state, setArea, selectPoint, setHoveredPoint, setView, startDrawing, stopDrawing, retrieveSample, notify, openGuide, togglePanel } = api;
+  const compact = useCompact();
+  const [layers, setLayers] = useState<LayerVisibility>({ points: true, area: true });
   const pointColors = usePointColors();
   const annotations = usePointAnnotations();
   const { theme, setTheme } = useTheme();
@@ -91,13 +103,42 @@ function Workspace() {
     }
   }, [openGuide]);
 
+  // Small screens: one drawer at a time, and get out of the way of the map
+  // while drawing or right after a sample loads.
+  useEffect(() => {
+    if (compact) togglePanel("right", false);
+  }, [compact, togglePanel]);
+  useEffect(() => {
+    if (compact && state.drawing) togglePanel("left", false);
+  }, [compact, state.drawing, togglePanel]);
+  useEffect(() => {
+    if (compact && state.sample) {
+      togglePanel("left", false);
+      togglePanel("right", false);
+    }
+  }, [compact, state.sample, togglePanel]);
+  useEffect(() => {
+    if (compact && state.leftPanelOpen) togglePanel("right", false);
+    // Only react to the left drawer opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, state.leftPanelOpen]);
+  useEffect(() => {
+    if (compact && state.rightPanelOpen) togglePanel("left", false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, state.rightPanelOpen]);
+
   // Keyboard shortcuts — ignored while typing in a field or reading the guide.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target) || state.guide) return;
       const key = e.key.toLowerCase();
-      if (VIEW_KEYS[key] && hasSample) {
-        setView(VIEW_KEYS[key]);
+      const tab = RESULT_TABS.find((t) => t.key === key);
+      if (tab && (hasSample || tab.id === "inspect")) {
+        setView(tab.id);
+      } else if (key === "[") {
+        togglePanel("left");
+      } else if (key === "]") {
+        togglePanel("right");
       } else if (key === "d") {
         if (state.drawing) stopDrawing();
         else startDrawing();
@@ -111,9 +152,11 @@ function Workspace() {
         openGuide("welcome");
       } else if (e.key === "Escape") {
         if (state.drawing) stopDrawing();
-        else if (state.view !== "map") setView("map");
-        else if (state.inspectorOpen) selectPoint(null);
-        else return;
+        else if (state.selectedPointId) selectPoint(null);
+        else if (compact && (state.leftPanelOpen || state.rightPanelOpen)) {
+          togglePanel("left", false);
+          togglePanel("right", false);
+        } else return;
       } else {
         return;
       }
@@ -121,71 +164,69 @@ function Workspace() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state, hasSample, basemap, setView, startDrawing, stopDrawing, retrieveSample, selectPoint, notify, openGuide]);
+  }, [state, hasSample, basemap, compact, setView, startDrawing, stopDrawing, retrieveSample, selectPoint, notify, openGuide, togglePanel]);
+
+  const shellClass = [
+    "app",
+    state.leftPanelOpen ? "has-left" : "",
+    state.rightPanelOpen ? "has-right" : "",
+    compact ? "is-compact" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className={`workspace${state.inspectorOpen ? " has-inspector" : ""}`}>
-      <MapCanvas
-        basemapKey={basemap}
-        area={state.area}
-        drawing={state.drawing}
-        points={state.sample?.points ?? []}
-        pointColors={pointColors}
-        neutralColor={colors.neutral}
-        accentColor={colors.accent}
-        selectedPointId={state.selectedPointId}
-        hoveredPointId={state.hoveredPointId}
-        queryPointId={state.queryPointId}
-        pinnedIds={state.pinnedIds}
-        mapRequest={state.mapRequest}
-        describePoint={describePoint}
-        onDrawArea={setArea}
-        onSelectPoint={selectPoint}
-        onHoverPoint={setHoveredPoint}
-        onMapReady={setMapInstance}
-      />
+    <div className={shellClass}>
+      <AppHeader theme={theme} onToggleTheme={toggleTheme} />
 
-      <div className="top-row">
-        <ControlBar />
-        <TopBar
-          basemap={basemap}
-          onBasemap={setBasemap}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onHelp={() => openGuide("welcome")}
+      <aside className="side-panel side-panel--left" aria-label="Workflow and layers" hidden={!state.leftPanelOpen}>
+        <WorkflowPanel basemap={basemap} onBasemap={setBasemap} layers={layers} onLayers={setLayers} />
+      </aside>
+
+      <main className="map-area" aria-label="Map">
+        <MapCanvas
+          basemapKey={basemap}
+          area={state.area}
+          drawing={state.drawing}
+          points={state.sample?.points ?? []}
+          pointColors={pointColors}
+          neutralColor={colors.neutral}
+          accentColor={colors.accent}
+          selectedPointId={state.selectedPointId}
+          hoveredPointId={state.hoveredPointId}
+          queryPointId={state.queryPointId}
+          pinnedIds={state.pinnedIds}
+          showPoints={layers.points}
+          showArea={layers.area}
+          mapRequest={state.mapRequest}
+          describePoint={describePoint}
+          onDrawArea={setArea}
+          onSelectPoint={selectPoint}
+          onHoverPoint={setHoveredPoint}
+          onMapReady={setMapInstance}
         />
-      </div>
-
-      <ViewSwitcher active={state.view} disabled={!hasSample} onChange={setView} />
-
-      {state.view !== "map" && (
-        <div className="view-overlay">
+        <MapToolbar />
+        <DrawBanner />
+        <MapLegend />
+        <Toast />
+        {compact && (state.leftPanelOpen || state.rightPanelOpen) && (
           <button
             type="button"
-            className="view-overlay__close"
-            aria-label="Back to map"
-            title="Back to map (Esc)"
-            onClick={() => setView("map")}
-          >
-            ✕
-          </button>
-          {state.view === "embedding" && <EmbeddingView />}
-          {state.view === "similarity" && <SimilarityView />}
-          {state.view === "analysis" && <AnalysisView />}
-        </div>
-      )}
+            className="scrim"
+            aria-label="Close panel"
+            onClick={() => {
+              togglePanel("left", false);
+              togglePanel("right", false);
+            }}
+          />
+        )}
+      </main>
 
-      <Inspector />
+      <aside className="side-panel side-panel--right" aria-label="Results" hidden={!state.rightPanelOpen}>
+        <ResultsPanel />
+      </aside>
 
-      <div className="dock-left">
-        {hasSample && <ColorPanel />}
-        <div className="wordmark">
-          Latent Earth
-          <span className="wordmark__sub">a laboratory for Earth-observation embeddings</span>
-        </div>
-      </div>
-
-      <Toast />
+      <StatusBar />
       <Guide />
     </div>
   );

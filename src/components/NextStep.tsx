@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { useWorkspace } from "../app/workspace.tsx";
 import { getViewBounds } from "../map/mapHandle.ts";
 import { areaKm2 } from "./AreaPanel.tsx";
@@ -21,16 +21,14 @@ interface NextStepProps {
  * with the button that does it.
  */
 export default function NextStep({ eeStatus, onOpenStep, onToggleDrawing }: NextStepProps) {
-  const { state, retrieveSample, setArea, runClustering, setView, notify, openGuide } = useWorkspace();
+  const { state, retrieveSample, setArea, notify, openGuide } = useWorkspace();
   const eeProject = useSyncExternalStore(subscribeEarthEngine, getEarthEngineProject);
-  const { source, area, drawing, sample, sampleIsStale, status, sampleSize, clusters, view } = state;
-  const [dismissedExplore, setDismissedExplore] = useState(false);
+  const { source, area, drawing, sample, sampleIsStale, status, sampleSize } = state;
 
   if (status.kind === "retrieving") return null;
 
   let text: React.ReactNode = null;
   let actions: React.ReactNode = null;
-  let dismissible = false;
 
   if (drawing) {
     text = (
@@ -138,42 +136,15 @@ export default function NextStep({ eeStatus, onOpenStep, onToggleDrawing }: Next
         </button>
       </>
     );
-  } else if (!dismissedExplore && view === "map" && !clusters && !state.queryPointId) {
-    dismissible = true;
-    text = (
-      <>
-        <strong>{sample.points.length.toLocaleString()} points loaded.</strong> Hover or click a point to
-        inspect it, or let the app find natural groupings.
-      </>
-    );
-    actions = (
-      <>
-        <button type="button" className="btn btn--primary btn--small" onClick={() => runClustering(4)}>
-          Find clusters
-        </button>
-        <button type="button" className="btn btn--small" onClick={() => setView("embedding")}>
-          Embedding view <kbd>2</kbd>
-        </button>
-      </>
-    );
   }
 
   if (!text) return null;
 
   return (
     <div className="next-step" role="status">
+      <span className="next-step__label">Next step</span>
       <span className="next-step__text">{text}</span>
       <span className="next-step__actions">{actions}</span>
-      {dismissible && (
-        <button
-          type="button"
-          className="btn btn--ghost btn--icon"
-          aria-label="Dismiss tip"
-          onClick={() => setDismissedExplore(true)}
-        >
-          ✕
-        </button>
-      )}
     </div>
   );
 }

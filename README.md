@@ -19,26 +19,30 @@ npm run typecheck  # TypeScript only
 
 ## Using the app
 
-The bar at the top walks you through three steps, and the line under it always
-says what to do next:
+The screen is laid out like a desktop GIS:
 
-1. **Choose source** — the embedding model to read.
-2. **Pick area** — drag a box on the map, search a place, use the current view,
-   or paste `west, south, east, north`.
-3. **Retrieve** — loads a grid of real embeddings (pick the size and year in the
-   `500 pts` menu).
+- **Header** — workflow progress (Source → Area → Retrieve → Explore), Export,
+  theme and Guide, plus buttons to show or hide the side panels (`[` and `]`).
+- **Left: workflow & layers** — a *Next step* card, then the steps:
+  1. **Data source** — the embedding model (AlphaEarth asks once for your own
+     Earth Engine project ID).
+  2. **Area of interest** — draw, search, use the current view or paste
+     `west, south, east, north`.
+  3. **Sample & retrieve** — number of points, year, Retrieve (`R`).
+  4. **Ground truth** (optional) — upload a CSV (`lat`, `lon`, value) or GeoJSON,
+     or label points by hand.
 
-The first time you use AlphaEarth you'll be asked for your own Earth Engine
-project ID — press `?` in the app for the full guide, including how to get one.
+  Under the workflow, **Layers** toggles points and area, switches the basemap
+  and sets *Color by* (plain, clusters, similarity, target).
+- **Map** — place search and drawing tools (draw `D`, use view, zoom to area,
+  zoom to points), hover tooltips, and a legend in the bottom-left corner.
+- **Right: results** — tabs for **Inspect** (sample overview or the clicked
+  point), **Embedding**, **Similarity** and **Analysis** (`1`–`4`).
+- **Status bar** — what's loaded, the Earth Engine connection, cursor
+  coordinates and zoom.
 
-Then explore: hover points for a tooltip, click one to inspect it, **Find
-similar places**, pin up to 5 points to compare, or **Find clusters**. Use
-*Color points by* (bottom-left) to switch between clusters, similarity and
-target. **+ Target** attaches real ground truth — a CSV (`lat`, `lon`, value
-column) or GeoJSON of points, or labels you type in the inspector — and the
-Analysis view reports how well the embedding predicts it (k-NN, leave-one-out).
-**Export** downloads CSV/GeoJSON or copies a session summary. Press `?` for
-keyboard shortcuts (`D` draw, `R` retrieve, `1`–`4` views, `B` basemap, `Esc`).
+On narrow screens the side panels become drawers over the map. Press `?` in the
+app for the full guide.
 
 ## Architecture
 

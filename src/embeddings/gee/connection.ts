@@ -29,7 +29,7 @@ export const NOT_CONFIGURED_MESSAGE =
   "Google sign-in is not configured for this deployment. Set VITE_GEE_CLIENT_ID (a Web OAuth client ID) and rebuild.";
 
 export const NO_PROJECT_MESSAGE =
-  "Enter your Earth Engine project ID first (Source → AlphaEarth). See Guide → Set up Earth Engine.";
+  "Enter your Earth Engine project ID first (step 1, Data source → AlphaEarth). See Guide → Set up Earth Engine.";
 
 interface ConnectionState {
   status: EarthEngineStatus;
@@ -136,7 +136,7 @@ export function describeEarthEngineError(raw: unknown): string {
     return `Project ${id} isn't registered for Earth Engine yet. Register it (free for noncommercial research) at code.earthengine.google.com/register, then retry. See Guide → Set up Earth Engine.`;
   }
   if (/not found|does not exist|NOT_FOUND/i.test(message)) {
-    return `Google can't find project "${id}". Check the project ID (not the project name or number) in Source → AlphaEarth.`;
+    return `Google can't find project "${id}". Check the project ID (not the project name or number) in step 1, Data source → AlphaEarth.`;
   }
   if (/permission|PERMISSION_DENIED|403|caller does not have/i.test(message)) {
     return `The Google account you signed in with can't use Earth Engine in project ${id}. Sign in with the account that owns the project, or check the project ID. (${message})`;

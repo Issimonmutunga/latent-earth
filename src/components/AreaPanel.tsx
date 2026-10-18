@@ -2,14 +2,7 @@ import { useState } from "react";
 import type { BoundingBox } from "../types/embedding.ts";
 import { useWorkspace } from "../app/workspace.tsx";
 import { getViewBounds } from "../map/mapHandle.ts";
-
-interface PlaceResult {
-  name: string;
-  bounds: BoundingBox;
-}
-
-/** Smallest box a search result is widened to, in degrees, so points have room to spread. */
-const MIN_RESULT_SPAN = 0.05;
+import { searchPlaces, type PlaceResult } from "../map/placeSearch.ts";
 
 export function areaKm2(a: BoundingBox): number {
   const midLat = ((a.north + a.south) / 2) * (Math.PI / 180);
@@ -21,14 +14,6 @@ export function formatArea(a: BoundingBox): string {
   if (km2 >= 1e6) return `${(km2 / 1e6).toFixed(1)}M km²`;
   if (km2 >= 1000) return `${Math.round(km2).toLocaleString()} km²`;
   return `${km2.toFixed(km2 < 10 ? 2 : 0)} km²`;
-}
-
-function widen(b: BoundingBox): BoundingBox {
-  const cx = (b.west + b.east) / 2;
-  const cy = (b.south + b.north) / 2;
-  const hw = Math.max(MIN_RESULT_SPAN, b.east - b.west) / 2;
-  const hh = Math.max(MIN_RESULT_SPAN, b.north - b.south) / 2;
-  return { west: cx - hw, east: cx + hw, south: cy - hh, north: cy + hh };
 }
 
 /** Parse "west, south, east, north" (any separators). */
@@ -70,18 +55,7 @@ export default function AreaPanel({
     setSearching(true);
     setSearchError(null);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(q)}`,
-        { headers: { Accept: "application/json" } },
-      );
-      if (!res.ok) throw new Error(`Search failed (${res.status}).`);
-      const data = (await res.json()) as Array<{ display_name: string; boundingbox: string[] }>;
-      setResults(
-        data.map((d) => {
-          const [south, north, west, east] = d.boundingbox.map(Number);
-          return { name: d.display_name, bounds: widen({ west, south, east, north }) };
-        }),
-      );
+      setResults(await searchPlaces(q));
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : "Search failed.");
       setResults(null);

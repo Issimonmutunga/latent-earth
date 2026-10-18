@@ -50,7 +50,8 @@ export interface EmbeddingSource {
   query(request: EmbeddingQuery): Promise<EmbeddingResult>;
 }
 
-export type ViewMode = "map" | "embedding" | "similarity" | "analysis";
+/** Tabs of the results panel; the map itself is always visible. */
+export type ViewMode = "inspect" | "embedding" | "similarity" | "analysis";
 
 /** One real ground-truth observation supplied by the researcher. */
 export interface TargetRow {

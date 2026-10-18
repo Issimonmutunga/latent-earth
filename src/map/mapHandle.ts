@@ -19,3 +19,28 @@ export function getViewBounds(): BoundingBox | null {
     north: Math.min(85, b.getNorth()),
   };
 }
+
+/** Cursor position and zoom for the status bar, published outside React renders. */
+export interface MapStatus {
+  cursor: { lng: number; lat: number } | null;
+  zoom: number;
+}
+
+let status: MapStatus = { cursor: null, zoom: 0 };
+const statusListeners = new Set<() => void>();
+
+export function publishMapStatus(next: Partial<MapStatus>): void {
+  status = { ...status, ...next };
+  for (const listener of statusListeners) listener();
+}
+
+export function subscribeMapStatus(listener: () => void): () => void {
+  statusListeners.add(listener);
+  return () => {
+    statusListeners.delete(listener);
+  };
+}
+
+export function getMapStatus(): MapStatus {
+  return status;
+}

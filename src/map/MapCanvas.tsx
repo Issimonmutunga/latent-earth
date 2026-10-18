@@ -6,6 +6,7 @@ import type { BoundingBox, EmbeddingPoint } from "../types/embedding.ts";
 import type { GeoFeature, GeoFeatureCollection } from "../types/geojson.ts";
 import type { MapRequest } from "../app/workspace.tsx";
 import { activeBasemaps, type BasemapKey } from "./basemap.ts";
+import { publishMapStatus } from "./mapHandle.ts";
 
 export interface PointDescription {
   title: string;
@@ -26,6 +27,9 @@ interface MapCanvasProps {
   hoveredPointId: string | null;
   queryPointId: string | null;
   pinnedIds: string[];
+  /** Layer visibility from the Layers panel. */
+  showPoints: boolean;
+  showArea: boolean;
   mapRequest: MapRequest | null;
   describePoint: (id: string) => PointDescription | null;
   onDrawArea: (bounds: BoundingBox) => void;
@@ -117,6 +121,9 @@ export default function MapCanvas(props: MapCanvasProps) {
   // False from the moment a new basemap style is requested until it loads, so
   // layer effects in the same render don't touch a style that is being replaced.
   const styleReadyRef = useRef(false);
+  // Bumped on every style load. A fast basemap switch can batch "not ready"
+  // and "ready" into one render, so layer effects key off this counter.
+  const [styleGen, setStyleGen] = useState(0);
 
   const style = activeBasemaps[props.basemapKey] as StyleSpecification;
 
@@ -142,11 +149,17 @@ export default function MapCanvas(props: MapCanvasProps) {
       maxWidth: "260px",
     });
     propsRef.current.onMapReady?.(map);
+    publishMapStatus({ zoom: map.getZoom() });
+    map.on("zoom", () => publishMapStatus({ zoom: map.getZoom() }));
+    // Side panels open and close around the map; keep the canvas sized to fit.
+    const resizer = new ResizeObserver(() => map.resize());
+    resizer.observe(containerRef.current);
 
     // Fires on the first load and again after every basemap switch.
     map.on("style.load", () => {
       styleReadyRef.current = true;
       setReady(true);
+      setStyleGen((g) => g + 1);
     });
     if (map.isStyleLoaded()) {
       styleReadyRef.current = true;
@@ -217,6 +230,7 @@ export default function MapCanvas(props: MapCanvasProps) {
       propsRef.current.onSelectPoint(pointIdAt(e.point));
     });
     map.on("mousemove", (e) => {
+      publishMapStatus({ cursor: { lng: e.lngLat.lng, lat: e.lngLat.lat } });
       if (dragRef.current) {
         moveDraft(e.lngLat);
         return;
@@ -227,10 +241,12 @@ export default function MapCanvas(props: MapCanvasProps) {
       if (id !== propsRef.current.hoveredPointId) propsRef.current.onHoverPoint(id);
     });
     map.on("mouseout", () => {
+      publishMapStatus({ cursor: null });
       if (propsRef.current.hoveredPointId) propsRef.current.onHoverPoint(null);
     });
 
     return () => {
+      resizer.disconnect();
       popupRef.current?.remove();
       map.remove();
       mapRef.current = null;
@@ -313,7 +329,9 @@ export default function MapCanvas(props: MapCanvasProps) {
       new Set(props.pinnedIds),
     );
     source.setData({ type: "FeatureCollection", features });
+    map.setLayoutProperty(POINT_LAYER, "visibility", props.showPoints ? "visible" : "none");
   }, [
+    props.showPoints,
     props.points,
     props.pointColors,
     props.neutralColor,
@@ -322,6 +340,7 @@ export default function MapCanvas(props: MapCanvasProps) {
     props.queryPointId,
     props.pinnedIds,
     ready,
+    styleGen,
   ]);
 
   // Hover tooltip, shared with the other views through the hovered point id.
@@ -394,7 +413,10 @@ export default function MapCanvas(props: MapCanvasProps) {
         beforeId,
       );
     }
-  }, [props.area, ready]);
+    for (const id of ["area-fill", "area-outline"]) {
+      map.setLayoutProperty(id, "visibility", props.showArea ? "visible" : "none");
+    }
+  }, [props.area, props.showArea, ready, styleGen]);
 
   // Theme switch: recolor layers that already exist.
   useEffect(() => {
@@ -406,7 +428,7 @@ export default function MapCanvas(props: MapCanvasProps) {
     if (map.getLayer("area-outline")) map.setPaintProperty("area-outline", "line-color", accent);
     if (map.getLayer("draft-area-fill")) map.setPaintProperty("draft-area-fill", "fill-color", accent);
     if (map.getLayer("draft-area-outline")) map.setPaintProperty("draft-area-outline", "line-color", accent);
-  }, [props.accentColor, ready]);
+  }, [props.accentColor, ready, styleGen]);
 
   // Camera requests: fit to a searched/pasted area, or fly to a point.
   useEffect(() => {

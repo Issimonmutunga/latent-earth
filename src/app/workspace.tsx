@@ -69,7 +69,9 @@ export interface WorkspaceState {
   hoveredPointId: string | null;
   queryPointId: string | null;
   pinnedIds: string[];
-  inspectorOpen: boolean;
+  /** Workflow panel (left) and results panel (right). */
+  leftPanelOpen: boolean;
+  rightPanelOpen: boolean;
   clusters: ClusterLayer | null;
   colorBasis: ColorBasis;
   mapRequest: MapRequest | null;
@@ -95,7 +97,7 @@ type Action =
   | { type: "hover-point"; id: string | null }
   | { type: "set-query-point"; id: string | null }
   | { type: "toggle-pin"; id: string }
-  | { type: "toggle-inspector" }
+  | { type: "toggle-panel"; side: "left" | "right"; open?: boolean }
   | { type: "set-clusters"; clusters: ClusterLayer }
   | { type: "clear-clusters" }
   | { type: "set-color-basis"; basis: ColorBasis }
@@ -103,6 +105,7 @@ type Action =
   | { type: "clear-target" }
   | { type: "label-point"; row: TargetRow; label: string | null }
   | { type: "fly-to-point"; id: string }
+  | { type: "fly-to-bounds"; bounds: BoundingBox }
   | { type: "toast"; text: string }
   | { type: "open-step"; step: StepId | null }
   | { type: "open-guide"; section: GuideSection | null };
@@ -117,18 +120,19 @@ const initialState: WorkspaceState = {
   sample: null,
   status: { kind: "idle" },
   sampleIsStale: false,
-  view: "map",
+  view: "inspect",
   drawing: false,
   selectedPointId: null,
   hoveredPointId: null,
   queryPointId: null,
   pinnedIds: [],
-  inspectorOpen: false,
+  leftPanelOpen: true,
+  rightPanelOpen: true,
   clusters: null,
   colorBasis: "neutral",
   mapRequest: null,
   toast: null,
-  openStep: null,
+  openStep: "source",
   guide: null,
 };
 
@@ -153,12 +157,14 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         sample: null,
         sampleIsStale: false,
         status: { kind: "idle" },
-        view: "map",
+        view: "inspect",
         selectedPointId: null,
         queryPointId: null,
         pinnedIds: [],
         clusters: null,
         colorBasis: "neutral",
+        // Earth Engine sources stay on step 1 until the project is set up.
+        openStep: action.source.providerConnection === "earth-engine" ? "source" : "area",
       };
     case "set-area":
       return {
@@ -168,9 +174,10 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         sampleIsStale: state.sample !== null,
         status: state.status.kind === "retrieving" ? state.status : { kind: "idle" },
         mapRequest: action.fly ? { kind: "fit", bounds: action.area, n: nextN } : state.mapRequest,
+        openStep: "sample",
       };
     case "clear-area":
-      return { ...state, area: null, sampleIsStale: state.sample !== null };
+      return { ...state, area: null, sampleIsStale: state.sample !== null, openStep: "area" };
     case "set-sample-size":
       return {
         ...state,
@@ -180,7 +187,7 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
     case "set-year":
       return { ...state, year: action.year, sampleIsStale: state.sample !== null };
     case "start-drawing":
-      return { ...state, drawing: true, view: "map", openStep: null };
+      return { ...state, drawing: true, openStep: "area" };
     case "stop-drawing":
       return { ...state, drawing: false };
     case "retrieve-start":
@@ -194,7 +201,9 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         selectedPointId: null,
         queryPointId: null,
         pinnedIds: [],
-        inspectorOpen: false,
+        view: "inspect",
+        rightPanelOpen: true,
+        openStep: null,
         clusters: null,
         colorBasis: state.target ? "target" : "neutral",
       };
@@ -203,9 +212,11 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
     case "retrieve-error":
       return { ...state, status: { kind: "error", message: action.message } };
     case "set-view":
-      return { ...state, view: action.view, drawing: action.view === "map" ? state.drawing : false };
+      return { ...state, view: action.view, rightPanelOpen: true };
     case "select-point":
-      return { ...state, selectedPointId: action.id, inspectorOpen: action.id !== null };
+      return action.id
+        ? { ...state, selectedPointId: action.id, view: "inspect", rightPanelOpen: true }
+        : { ...state, selectedPointId: null };
     case "hover-point":
       return { ...state, hoveredPointId: action.id };
     case "set-query-point":
@@ -220,8 +231,10 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
         : [...state.pinnedIds, action.id].slice(-MAX_PINNED);
       return { ...state, pinnedIds: pinned };
     }
-    case "toggle-inspector":
-      return { ...state, inspectorOpen: !state.inspectorOpen };
+    case "toggle-panel": {
+      const key = action.side === "left" ? "leftPanelOpen" : "rightPanelOpen";
+      return { ...state, [key]: action.open ?? !state[key] };
+    }
     case "set-clusters":
       return { ...state, clusters: action.clusters, colorBasis: "cluster" };
     case "clear-clusters":
@@ -261,16 +274,18 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
       if (!p) return state;
       return {
         ...state,
-        view: "map",
+        view: "inspect",
         selectedPointId: p.id,
-        inspectorOpen: true,
+        rightPanelOpen: true,
         mapRequest: { kind: "point", lon: p.lon, lat: p.lat, n: nextN },
       };
     }
     case "open-step":
-      return { ...state, openStep: action.step };
+      return { ...state, openStep: action.step, leftPanelOpen: action.step ? true : state.leftPanelOpen };
     case "open-guide":
       return { ...state, guide: action.section, openStep: action.section ? null : state.openStep };
+    case "fly-to-bounds":
+      return { ...state, mapRequest: { kind: "fit", bounds: action.bounds, n: nextN } };
     case "toast":
       return { ...state, toast: { text: action.text, n: (state.toast?.n ?? 0) + 1 } };
     default:
@@ -293,7 +308,7 @@ export interface WorkspaceApi {
   setHoveredPoint: (id: string | null) => void;
   setQueryPoint: (id: string | null) => void;
   togglePin: (id: string) => void;
-  toggleInspector: () => void;
+  togglePanel: (side: "left" | "right", open?: boolean) => void;
   runClustering: (k: number) => void;
   clearClusters: () => void;
   setColorBasis: (basis: ColorBasis) => void;
@@ -301,6 +316,7 @@ export interface WorkspaceApi {
   clearTarget: () => void;
   labelPoint: (id: string, label: string | null) => void;
   flyToPoint: (id: string) => void;
+  flyToBounds: (bounds: BoundingBox) => void;
   notify: (text: string) => void;
   setOpenStep: (step: StepId | null) => void;
   openGuide: (section: GuideSection | null) => void;
@@ -377,7 +393,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const togglePin = useCallback((id: string) => dispatch({ type: "toggle-pin", id }), []);
-  const toggleInspector = useCallback(() => dispatch({ type: "toggle-inspector" }), []);
+  const togglePanel = useCallback(
+    (side: "left" | "right", open?: boolean) => dispatch({ type: "toggle-panel", side, open }),
+    [],
+  );
   const runClustering = useCallback((k: number) => {
     const sample = stateRef.current.sample;
     if (!sample || sample.points.length < k) return;
@@ -397,6 +416,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "label-point", row: { lat: p.lat, lon: p.lon }, label });
   }, []);
   const flyToPoint = useCallback((id: string) => dispatch({ type: "fly-to-point", id }), []);
+  const flyToBounds = useCallback((bounds: BoundingBox) => dispatch({ type: "fly-to-bounds", bounds }), []);
   const notify = useCallback((text: string) => dispatch({ type: "toast", text }), []);
   const setOpenStep = useCallback((step: StepId | null) => dispatch({ type: "open-step", step }), []);
   const openGuide = useCallback(
@@ -420,7 +440,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setHoveredPoint,
       setQueryPoint,
       togglePin,
-      toggleInspector,
+      togglePanel,
       runClustering,
       clearClusters,
       setColorBasis,
@@ -428,6 +448,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       clearTarget,
       labelPoint,
       flyToPoint,
+      flyToBounds,
       notify,
       setOpenStep,
       openGuide,
@@ -447,7 +468,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setHoveredPoint,
       setQueryPoint,
       togglePin,
-      toggleInspector,
+      togglePanel,
       runClustering,
       clearClusters,
       setColorBasis,
@@ -455,6 +476,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       clearTarget,
       labelPoint,
       flyToPoint,
+      flyToBounds,
       notify,
       setOpenStep,
       openGuide,
