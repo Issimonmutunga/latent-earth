@@ -9,6 +9,7 @@ import ViewSwitcher from "../ui/ViewSwitcher.tsx";
 import Inspector from "../components/Inspector.tsx";
 import ColorPanel from "../components/ColorPanel.tsx";
 import TopBar from "../components/TopBar.tsx";
+import Guide from "../components/Guide.tsx";
 import Toast from "../ui/Toast.tsx";
 import ErrorBoundary from "../ui/ErrorBoundary.tsx";
 import EmbeddingView from "../components/views/EmbeddingView.tsx";
@@ -20,6 +21,7 @@ import { BASEMAP_LABELS, type BasemapKey } from "../map/basemap.ts";
 import type { ViewMode } from "../types/embedding.ts";
 
 const BASEMAP_ORDER: BasemapKey[] = ["dark", "light", "satellite"];
+const GUIDE_SEEN_KEY = "latent-earth:guide-seen";
 const VIEW_KEYS: Record<string, ViewMode> = { "1": "map", "2": "embedding", "3": "similarity", "4": "analysis" };
 
 export default function App() {
@@ -44,7 +46,7 @@ function isTyping(target: EventTarget | null): boolean {
 
 function Workspace() {
   const api = useWorkspace();
-  const { state, setArea, selectPoint, setHoveredPoint, setView, startDrawing, stopDrawing, retrieveSample, notify } = api;
+  const { state, setArea, selectPoint, setHoveredPoint, setView, startDrawing, stopDrawing, retrieveSample, notify, openGuide } = api;
   const pointColors = usePointColors();
   const annotations = usePointAnnotations();
   const { theme, setTheme } = useTheme();
@@ -57,7 +59,6 @@ function Workspace() {
     // Keep the street map in step with the theme; leave satellite alone.
     setBasemap((b) => (b === "satellite" ? b : next === "dark" ? "dark" : "light"));
   }, [theme, setTheme]);
-  const [helpOpen, setHelpOpen] = useState(false);
   const hasSample = state.sample !== null;
 
   const describePoint = useCallback(
@@ -78,10 +79,22 @@ function Workspace() {
     [state.sample, state.queryPointId, annotations],
   );
 
-  // Keyboard shortcuts — ignored while typing in a field.
+  // First visit: open the guide once so newcomers know where to start.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(GUIDE_SEEN_KEY)) {
+        openGuide("welcome");
+        localStorage.setItem(GUIDE_SEEN_KEY, "1");
+      }
+    } catch {
+      // No storage: skip the automatic welcome rather than show it every load.
+    }
+  }, [openGuide]);
+
+  // Keyboard shortcuts — ignored while typing in a field or reading the guide.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target) || state.guide) return;
       const key = e.key.toLowerCase();
       if (VIEW_KEYS[key] && hasSample) {
         setView(VIEW_KEYS[key]);
@@ -95,10 +108,9 @@ function Workspace() {
         setBasemap(next);
         notify(`Basemap: ${BASEMAP_LABELS[next]}`);
       } else if (e.key === "?") {
-        setHelpOpen((v) => !v);
+        openGuide("welcome");
       } else if (e.key === "Escape") {
         if (state.drawing) stopDrawing();
-        else if (helpOpen) setHelpOpen(false);
         else if (state.view !== "map") setView("map");
         else if (state.inspectorOpen) selectPoint(null);
         else return;
@@ -109,7 +121,7 @@ function Workspace() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state, hasSample, basemap, helpOpen, setView, startDrawing, stopDrawing, retrieveSample, selectPoint, notify]);
+  }, [state, hasSample, basemap, setView, startDrawing, stopDrawing, retrieveSample, selectPoint, notify, openGuide]);
 
   return (
     <div className={`workspace${state.inspectorOpen ? " has-inspector" : ""}`}>
@@ -140,8 +152,7 @@ function Workspace() {
           onBasemap={setBasemap}
           theme={theme}
           onToggleTheme={toggleTheme}
-          helpOpen={helpOpen}
-          onHelp={setHelpOpen}
+          onHelp={() => openGuide("welcome")}
         />
       </div>
 
@@ -175,6 +186,7 @@ function Workspace() {
       </div>
 
       <Toast />
+      <Guide />
     </div>
   );
 }

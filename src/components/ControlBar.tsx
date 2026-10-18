@@ -9,7 +9,9 @@ import AreaPanel from "./AreaPanel.tsx";
 import TargetPanel from "./TargetPanel.tsx";
 import NextStep from "./NextStep.tsx";
 import {
+  getEarthEngineProject,
   getEarthEngineStatus,
+  NO_PROJECT_MESSAGE,
   subscribeEarthEngine,
 } from "../embeddings/gee/connection.ts";
 
@@ -26,6 +28,8 @@ export default function ControlBar() {
     useWorkspace();
   const { source, sources, area, drawing, status, sample, sampleIsStale, sampleSize, year, target } = state;
   const eeStatus = useSyncExternalStore(subscribeEarthEngine, getEarthEngineStatus);
+  const eeProject = useSyncExternalStore(subscribeEarthEngine, getEarthEngineProject);
+  const missingProject = status.kind === "error" && status.message === NO_PROJECT_MESSAGE;
 
   const { openStep } = state;
 
@@ -134,12 +138,18 @@ export default function ControlBar() {
         </div>
       )}
 
-      {status.kind === "error" && (
+      {status.kind === "error" && !(missingProject && eeProject) && (
         <div className="message message--error" role="alert">
           <span>{status.message}</span>
-          <button type="button" className="btn btn--primary btn--small" onClick={onRetrieve} disabled={!canRetrieve}>
-            {source?.providerConnection === "earth-engine" && eeStatus !== "connected" ? "Sign in & retry" : "Retry"}
-          </button>
+          {missingProject ? (
+            <button type="button" className="btn btn--primary btn--small" onClick={() => setOpenStep("source")}>
+              Enter project ID
+            </button>
+          ) : (
+            <button type="button" className="btn btn--primary btn--small" onClick={onRetrieve} disabled={!canRetrieve}>
+              {source?.providerConnection === "earth-engine" && eeStatus !== "connected" ? "Sign in & retry" : "Retry"}
+            </button>
+          )}
         </div>
       )}
 

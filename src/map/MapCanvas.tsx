@@ -373,7 +373,7 @@ export default function MapCanvas(props: MapCanvasProps) {
           id: "area-fill",
           type: "fill",
           source: "area",
-          paint: { "fill-color": props.accentColor, "fill-opacity": 0.08 },
+          paint: { "fill-color": props.accentColor, "fill-opacity": 0.1 },
         },
         beforeId,
       );
@@ -386,7 +386,7 @@ export default function MapCanvas(props: MapCanvasProps) {
           source: "area",
           paint: {
             "line-color": props.accentColor,
-            "line-width": 1.8,
+            "line-width": 2.6,
             "line-dasharray": [2, 2],
             "line-opacity": 0.95,
           },

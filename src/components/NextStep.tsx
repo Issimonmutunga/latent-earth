@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useWorkspace } from "../app/workspace.tsx";
 import { getViewBounds } from "../map/mapHandle.ts";
 import { areaKm2 } from "./AreaPanel.tsx";
-import { signInEarthEngine, type EarthEngineStatus } from "../embeddings/gee/connection.ts";
+import {
+  getEarthEngineProject,
+  signInEarthEngine,
+  subscribeEarthEngine,
+  type EarthEngineStatus,
+} from "../embeddings/gee/connection.ts";
 import type { StepId } from "../app/workspace.tsx";
 
 interface NextStepProps {
@@ -16,7 +21,8 @@ interface NextStepProps {
  * with the button that does it.
  */
 export default function NextStep({ eeStatus, onOpenStep, onToggleDrawing }: NextStepProps) {
-  const { state, retrieveSample, setArea, runClustering, setView, notify } = useWorkspace();
+  const { state, retrieveSample, setArea, runClustering, setView, notify, openGuide } = useWorkspace();
+  const eeProject = useSyncExternalStore(subscribeEarthEngine, getEarthEngineProject);
   const { source, area, drawing, sample, sampleIsStale, status, sampleSize, clusters, view } = state;
   const [dismissedExplore, setDismissedExplore] = useState(false);
 
@@ -45,11 +51,28 @@ export default function NextStep({ eeStatus, onOpenStep, onToggleDrawing }: Next
       </button>
     );
   } else if (source.providerConnection === "earth-engine" && eeStatus === "not-configured") {
-    text = `${source.name} needs Google Earth Engine credentials configured for this deployment.`;
+    text = `Google sign-in isn't set up on this deployment, so ${source.name} can't load yet.`;
     actions = (
-      <button type="button" className="btn btn--small" onClick={() => onOpenStep("source")}>
-        How to set up
+      <button type="button" className="btn btn--small" onClick={() => openGuide("troubleshooting")}>
+        Details
       </button>
+    );
+  } else if (source.providerConnection === "earth-engine" && !eeProject) {
+    text = (
+      <>
+        <strong>One-time setup:</strong> enter your free Earth Engine project ID so {source.name} runs on
+        your own quota.
+      </>
+    );
+    actions = (
+      <>
+        <button type="button" className="btn btn--primary btn--small" onClick={() => onOpenStep("source")}>
+          Enter project ID
+        </button>
+        <button type="button" className="btn btn--small" onClick={() => openGuide("setup")}>
+          How do I get one?
+        </button>
+      </>
     );
   } else if (source.providerConnection === "earth-engine" && eeStatus === "auth-pending") {
     text = `One more click: sign in with Google so ${source.name} can read Earth Engine data.`;

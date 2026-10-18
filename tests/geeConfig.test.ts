@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ALPHAEARTH,
+  getDefaultProjectId,
   getGeeClientId,
   getGeeProjectId,
   isConfigured,
+  normalizeProjectId,
   resolveYear,
 } from "../src/embeddings/gee/config.ts";
 
@@ -32,9 +34,7 @@ describe("alphaearth dataset config", () => {
     expect(ALPHAEARTH.attribution).toMatch(/produced by Google and Google DeepMind/);
   });
 
-  it("is not configured without a project id and client id", () => {
-    delete env.VITE_GEE_PROJECT_ID;
-    delete env.VITE_GEE_CLIENT_ID;
+  it("is not configured without a client id", () => {
     expect(isConfigured()).toBe(false);
     expect(getGeeProjectId()).toBeNull();
     expect(getGeeClientId()).toBeNull();
@@ -42,24 +42,29 @@ describe("alphaearth dataset config", () => {
 
   it("is not configured when only the project id is set", () => {
     env.VITE_GEE_PROJECT_ID = "ee-my-project";
-    delete env.VITE_GEE_CLIENT_ID;
     expect(getGeeProjectId()).toBe("ee-my-project");
     expect(isConfigured()).toBe(false);
   });
 
-  it("is not configured when only the client id is set", () => {
-    delete env.VITE_GEE_PROJECT_ID;
-    env.VITE_GEE_CLIENT_ID = "my-client-id.apps.googleusercontent.com";
-    expect(getGeeClientId()).toBe("my-client-id.apps.googleusercontent.com");
-    expect(isConfigured()).toBe(false);
-  });
-
-  it("is configured when a project id and client id are set", () => {
-    env.VITE_GEE_PROJECT_ID = "  ee-my-project  ";
+  it("needs only the client id, since researchers bring their own project", () => {
     env.VITE_GEE_CLIENT_ID = "  my-client-id.apps.googleusercontent.com  ";
-    expect(getGeeProjectId()).toBe("ee-my-project");
     expect(getGeeClientId()).toBe("my-client-id.apps.googleusercontent.com");
+    expect(getGeeProjectId()).toBeNull();
     expect(isConfigured()).toBe(true);
+  });
+
+  it("trims a build-time default project", () => {
+    env.VITE_GEE_PROJECT_ID = "  ee-my-project  ";
+    expect(getDefaultProjectId()).toBe("ee-my-project");
+  });
+
+  it("validates and normalises project ids", () => {
+    expect(normalizeProjectId("ee-yourname")).toBe("ee-yourname");
+    expect(normalizeProjectId("  projects/EE-Lab-2024 ")).toBe("ee-lab-2024");
+    expect(normalizeProjectId("123456789012")).toBeNull();
+    expect(normalizeProjectId("short")).toBeNull();
+    expect(normalizeProjectId("ends-with-")).toBeNull();
+    expect(normalizeProjectId("has space")).toBeNull();
   });
 
   it("clamps requested years to the available range", () => {

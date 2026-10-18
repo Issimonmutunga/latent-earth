@@ -10,18 +10,9 @@ interface TopBarProps {
   onBasemap: (key: BasemapKey) => void;
   theme: Theme;
   onToggleTheme: () => void;
-  helpOpen: boolean;
-  onHelp: (open: boolean) => void;
+  onHelp: () => void;
 }
 
-const SHORTCUTS: Array<[string, string]> = [
-  ["D", "Draw an area"],
-  ["R", "Retrieve sample"],
-  ["1 – 4", "Map · Embedding · Similarity · Analysis"],
-  ["B", "Cycle basemap"],
-  ["Esc", "Cancel / back to map / close"],
-  ["?", "Show this help"],
-];
 
 /** Close a floating menu on outside click. */
 function useDismiss(open: boolean, close: () => void) {
@@ -37,12 +28,11 @@ function useDismiss(open: boolean, close: () => void) {
   return ref;
 }
 
-export default function TopBar({ basemap, onBasemap, theme, onToggleTheme, helpOpen, onHelp }: TopBarProps) {
+export default function TopBar({ basemap, onBasemap, theme, onToggleTheme, onHelp }: TopBarProps) {
   const { state, notify } = useWorkspace();
   const annotations = usePointAnnotations();
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useDismiss(exportOpen, () => setExportOpen(false));
-  const helpRef = useDismiss(helpOpen, () => onHelp(false));
   const { sample, source, clusters, target } = state;
 
   const stem = `latent-earth-${source?.id ?? "sample"}-${new Date().toISOString().slice(0, 10)}`;
@@ -137,48 +127,9 @@ export default function TopBar({ basemap, onBasemap, theme, onToggleTheme, helpO
         )}
       </div>
 
-      <div className="menu-anchor" ref={helpRef}>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Help & shortcuts (?)"
-          aria-expanded={helpOpen}
-          onClick={() => onHelp(!helpOpen)}
-        >
-          ?
-        </button>
-        {helpOpen && (
-          <div className="menu menu--help" role="dialog" aria-label="Help">
-            <div className="block-title">How it works</div>
-            <ol className="help-steps">
-              <li>
-                <strong>Choose a source</strong> — the embedding model to read.
-              </li>
-              <li>
-                <strong>Pick an area</strong> — draw, search a place, or use the view.
-              </li>
-              <li>
-                <strong>Retrieve</strong> — loads a grid of real embeddings.
-              </li>
-              <li>
-                <strong>Explore</strong> — cluster, find similar places, or attach a target to test
-                for a signal.
-              </li>
-            </ol>
-            <div className="block-title">Keyboard shortcuts</div>
-            <dl className="shortcut-list">
-              {SHORTCUTS.map(([k, label]) => (
-                <div key={k} className="shortcut">
-                  <dt>
-                    <kbd>{k}</kbd>
-                  </dt>
-                  <dd>{label}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
-      </div>
+      <button type="button" className="icon-btn" title="Guide & shortcuts (?)" onClick={onHelp}>
+        ? <span className="icon-btn__label">Guide</span>
+      </button>
     </div>
   );
 }

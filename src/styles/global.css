@@ -1685,3 +1685,275 @@ input[type="range"] {
   font-size: 11.5px;
   color: var(--error);
 }
+
+/* ---- AlphaEarth setup checklist ---- */
+.connection-panel {
+  display: grid;
+  gap: 8px;
+}
+.connection-panel__title {
+  margin: 0;
+}
+.connection-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.link-btn--inline {
+  padding: 0;
+  font-size: inherit;
+}
+.setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  counter-reset: setup;
+}
+.setup-steps li {
+  counter-increment: setup;
+  position: relative;
+  padding-left: 30px;
+  display: grid;
+  gap: 6px;
+  opacity: 0.55;
+}
+.setup-steps li.is-current,
+.setup-steps li.is-done {
+  opacity: 1;
+}
+.setup-steps li::before {
+  content: counter(setup);
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+}
+.setup-steps li.is-done::before {
+  content: "✓";
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.setup-steps__label {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.status-dot--ok {
+  background: var(--ok);
+}
+
+/* ---- Guide ---- */
+.guide-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--bg) 55%, rgba(0, 0, 0, 0.45));
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: rise 160ms ease-out;
+}
+.guide {
+  box-sizing: border-box;
+  width: min(920px, 100%);
+  height: min(680px, calc(100vh - 48px));
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  overflow: hidden;
+}
+.guide__nav {
+  background: var(--card-bg);
+  border-right: 1px solid var(--border);
+  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.guide__brand {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 10px 12px;
+}
+.guide__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.guide__nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.guide__nav-item.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.guide__nav-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  border: 1px solid currentColor;
+  flex: none;
+}
+.guide__body {
+  position: relative;
+  overflow-y: auto;
+  padding: 28px 36px 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.guide__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.guide__body h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.guide__body h3 {
+  margin: 22px 0 6px;
+  font-size: 15px;
+}
+.guide__body p,
+.guide__body ul {
+  margin: 0 0 12px;
+}
+.guide__body ul {
+  padding-left: 20px;
+}
+.guide__body li {
+  margin-bottom: 4px;
+}
+.guide__body a {
+  color: var(--accent);
+  font-weight: 500;
+}
+.guide__body code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.guide__lead {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+.guide__muted {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.guide__callout {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 10px 14px;
+  margin: 14px 0;
+}
+.guide__steps {
+  padding-left: 22px;
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.guide__steps li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+.guide__code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  overflow-x: auto;
+}
+.guide__terms {
+  margin: 0;
+}
+.guide__terms dt {
+  font-weight: 600;
+  margin-top: 14px;
+}
+.guide__terms dd {
+  margin: 2px 0 0;
+  color: var(--text-dim);
+}
+.guide__footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.guide .shortcut dt {
+  width: 64px;
+}
+
+@media (max-width: 767px) {
+  .guide-backdrop {
+    padding: 0;
+  }
+  .guide {
+    height: 100%;
+    border-radius: 0;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .guide__nav {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px;
+  }
+  .guide__brand {
+    display: none;
+  }
+  .guide__nav-item {
+    white-space: nowrap;
+  }
+  .guide__body {
+    padding: 20px 18px;
+  }
+}

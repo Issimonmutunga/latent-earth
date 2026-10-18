@@ -28,6 +28,9 @@ says what to do next:
 3. **Retrieve** — loads a grid of real embeddings (pick the size and year in the
    `500 pts` menu).
 
+The first time you use AlphaEarth you'll be asked for your own Earth Engine
+project ID — press `?` in the app for the full guide, including how to get one.
+
 Then explore: hover points for a tooltip, click one to inspect it, **Find
 similar places**, pin up to 5 points to compare, or **Find clusters**. Use
 *Color points by* (bottom-left) to switch between clusters, similarity and
@@ -49,46 +52,60 @@ providers (AlphaEarth, TESSERA, Clay) surface explicit errors until their
 network integration is verified. A mock source exists for UI development only
 and is never present in production builds.
 
-### AlphaEarth (Google Earth Engine)
+### AlphaEarth (Google Earth Engine) — bring your own project
 
 The AlphaEarth source reads `GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL` through the
-client-side Earth Engine API. Users connect with their own Earth Engine
-account, so no secret is embedded in the app:
+client-side Earth Engine API. **Each researcher uses their own Earth Engine
+project**: they sign in with Google and paste their project ID once (saved in
+their browser), so all compute runs on their own free noncommercial quota and
+none on the site owner's. The in-app **Guide** (`?`) walks users through
+registering a project at code.earthengine.google.com/register.
+
+The deployment only provides the Google sign-in client:
 
 ```sh
-VITE_GEE_PROJECT_ID=your-ee-project-id
 VITE_GEE_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
+# Optional, private deployments only: a project everyone shares by default.
+# Leave unset on a public site so nobody falls back to your project.
+# VITE_GEE_PROJECT_ID=your-ee-project-id
 ```
 
-Set the variables in a local `.env.local` file (or environment) before
-`npm run dev`. The OAuth client ID is a *Web* OAuth 2.0 Client created in the
-same Cloud project, with the app's URL (e.g. `http://localhost:5173`) listed
-under **Authorized JavaScript origins**. Without both variables the source stays
-disabled (`integration-pending`). In the app, choose AlphaEarth, draw an area and
-press **Retrieve** — it opens Google's sign-in popup (Google Identity Services)
-on that click, then loads the sample.
+Without `VITE_GEE_CLIENT_ID` the AlphaEarth source stays disabled
+(`integration-pending`).
 
-If sign-in fails, check in the Google Cloud Console (same project):
+#### One-time setup for whoever runs the site
 
-- **OAuth client** (APIs & Services → Credentials): type *Web application*, with
-  every origin you use (e.g. `http://localhost:5173`,
-  `https://latent-earth.vercel.app`) under **Authorized JavaScript origins**.
-  An `origin_mismatch` error in the popup means one is missing.
-- **OAuth consent screen**: while it is in *Testing*, add each Google account
-  that will sign in as a **test user**.
-- **Earth Engine API** enabled, and the project registered for Earth Engine
-  (code.earthengine.google.com/register).
-- Accounts other than the owner need the *Earth Engine Resource Viewer* and
-  *Service Usage Consumer* roles on the project.
+In the [Google Cloud Console](https://console.cloud.google.com/), in any project
+you own (it doesn't need Earth Engine itself):
+
+1. **OAuth consent screen** (Google Auth Platform → Branding/Audience): app name,
+   support email, and the scope
+   `https://www.googleapis.com/auth/earthengine.readonly`.
+   - While the app is in **Testing**, only accounts listed as **test users** can
+     sign in (up to 100).
+   - To let anyone sign in, **publish** it to *In production*. Until Google
+     verifies the app, users see a "Google hasn't verified this app" screen they
+     can click through (*Advanced → Go to …*), and Google limits how many new
+     users an unverified app can have. Submit it for verification (needs a
+     homepage and privacy policy) to remove both.
+2. **Credentials → Create OAuth client ID → Web application.** Under
+   **Authorized JavaScript origins** add every address the app is served from,
+   with no trailing slash, e.g. `https://latent-earth.vercel.app` and
+   `http://localhost:5173`. Redirect URIs are not needed. A popup error
+   `Error 400: origin_mismatch` means an origin is missing; changes can take a few
+   minutes to apply.
+3. Put the client ID in `.env.local` for local development and in Vercel →
+   Project → Settings → **Environment Variables** for deployment, then redeploy
+   (Vite inlines `VITE_*` at build time).
+
+Sign-in uses Google Identity Services: Retrieve opens Google's popup on that
+click, and the token is kept in memory for the tab only.
 
 ### Deploying
 
 The app is a static Vite build (`dist/`); it can be hosted anywhere (Vercel,
-Netlify, etc.). For the Earth Engine sign-in to work on a deployed origin,
-provide the same two variables as Vercel/Netlify **environment variables**
-(Vite inlines `VITE_*` at build time), and add the deployed origin (e.g.
-`https://your-domain.com`) to the OAuth client's **Authorized JavaScript
-origins** in the Google Cloud Console.
+Netlify, etc.) once the variables above are set and the deployed origin is listed
+on the OAuth client.
 
 Data license (CC-BY 4.0) attribution: *"The AlphaEarth Foundations Satellite
 Embedding dataset is produced by Google and Google DeepMind."*

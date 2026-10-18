@@ -1,5 +1,11 @@
 import type { EarthEngineApi, TokenClient, TokenResponse } from "../../types/earthengine.ts";
-import { getGeeClientId, getGeeProjectId, isConfigured } from "./config.ts";
+import {
+  getGeeClientId,
+  getGeeProjectId,
+  isConfigured,
+  normalizeProjectId,
+  saveUserProjectId,
+} from "./config.ts";
 import { ensureEarthEngine, ensureGoogleIdentity } from "./loader.ts";
 
 /**
@@ -20,7 +26,10 @@ export type EarthEngineStatus =
 export const READ_ONLY_SCOPES = ["https://www.googleapis.com/auth/earthengine.readonly"];
 
 export const NOT_CONFIGURED_MESSAGE =
-  "Google Earth Engine is not configured. Set VITE_GEE_PROJECT_ID (your Earth Engine-enabled Cloud Project ID) and VITE_GEE_CLIENT_ID (the OAuth client ID of that project).";
+  "Google sign-in is not configured for this deployment. Set VITE_GEE_CLIENT_ID (a Web OAuth client ID) and rebuild.";
+
+export const NO_PROJECT_MESSAGE =
+  "Enter your Earth Engine project ID first (Source → AlphaEarth). See Guide → Set up Earth Engine.";
 
 interface ConnectionState {
   status: EarthEngineStatus;
@@ -42,6 +51,9 @@ const state: ConnectionState = {
 };
 const listeners = new Set<() => void>();
 let preparing: Promise<void> | null = null;
+/** Project the current Earth Engine session was initialised with. */
+let initializedProject: string | null = null;
+let project: string | null = getGeeProjectId();
 
 function emit() {
   for (const listener of listeners) listener();
@@ -67,6 +79,42 @@ export function getEarthEngineError(): string | null {
   return getEarthEngineStatus() === "not-configured" ? null : state.error;
 }
 
+export function getEarthEngineProject(): string | null {
+  return project;
+}
+
+/**
+ * Save the researcher's Earth Engine project. Returns an error message when
+ * the ID is malformed. An existing session switches to the new project
+ * without another Google popup.
+ */
+export function setEarthEngineProject(input: string): string | null {
+  const id = input.trim() === "" ? null : normalizeProjectId(input);
+  if (input.trim() !== "" && !id) {
+    return "That doesn't look like a project ID. It's 6–30 lowercase letters, digits or hyphens, e.g. ee-yourname.";
+  }
+  saveUserProjectId(id);
+  project = getGeeProjectId();
+  emit();
+  if (state.status === "connected" && state.api && project && project !== initializedProject) {
+    const api = state.api;
+    const next = project;
+    update({ status: "connecting", error: null });
+    initialize(api, next)
+      .then(() => {
+        initializedProject = next;
+        update({ status: "connected", error: null });
+      })
+      .catch((err) => {
+        state.api = null;
+        update({ status: "idle", error: describeEarthEngineError(err) });
+      });
+  } else if (!project && state.status === "connected") {
+    disconnectEarthEngine();
+  }
+  return null;
+}
+
 export function getEarthEngineApi(): EarthEngineApi | null {
   return getEarthEngineStatus() === "connected" ? state.api : null;
 }
@@ -80,12 +128,18 @@ function messageFrom(err: unknown): string {
 /** Turn raw Earth Engine / OAuth errors into something a researcher can act on. */
 export function describeEarthEngineError(raw: unknown): string {
   const message = messageFrom(raw);
-  const project = getGeeProjectId() ?? "your Cloud project";
+  const id = project ?? "your project";
+  if (/has not been used|is disabled|SERVICE_DISABLED|enable it by visiting/i.test(message)) {
+    return `The Earth Engine API is turned off in project ${id}. Enable it at console.cloud.google.com/apis/library/earthengine.googleapis.com?project=${id}, wait a minute, then retry.`;
+  }
   if (/not (been )?registered|not signed up|register/i.test(message)) {
-    return `Earth Engine isn't enabled for this account or project (${project}). Register the project for Earth Engine at code.earthengine.google.com/register, then try again.`;
+    return `Project ${id} isn't registered for Earth Engine yet. Register it (free for noncommercial research) at code.earthengine.google.com/register, then retry. See Guide → Set up Earth Engine.`;
+  }
+  if (/not found|does not exist|NOT_FOUND/i.test(message)) {
+    return `Google can't find project "${id}". Check the project ID (not the project name or number) in Source → AlphaEarth.`;
   }
   if (/permission|PERMISSION_DENIED|403|caller does not have/i.test(message)) {
-    return `Your Google account can't use Earth Engine in project ${project}. Ask the project owner to give you the "Earth Engine Resource Viewer" and "Service Usage Consumer" roles. (${message})`;
+    return `The Google account you signed in with can't use Earth Engine in project ${id}. Sign in with the account that owns the project, or check the project ID. (${message})`;
   }
   if (/quota|rate limit|too many/i.test(message)) {
     return `Earth Engine is rate-limiting requests. Wait a moment, or retrieve fewer points. (${message})`;
@@ -104,10 +158,10 @@ function describeTokenError(response: TokenResponse): string {
 }
 
 function requireConfig(): { projectId: string; clientId: string } {
-  const projectId = getGeeProjectId();
   const clientId = getGeeClientId();
-  if (!projectId || !clientId) throw new Error(NOT_CONFIGURED_MESSAGE);
-  return { projectId, clientId };
+  if (!clientId) throw new Error(NOT_CONFIGURED_MESSAGE);
+  if (!project) throw new Error(NO_PROJECT_MESSAGE);
+  return { projectId: project, clientId };
 }
 
 /** Load Google sign-in and the Earth Engine client ahead of the click that needs them. */
@@ -115,7 +169,7 @@ export function prepareEarthEngine(): Promise<void> {
   if (!isConfigured()) return Promise.resolve();
   if (state.tokenClient && window.ee) return Promise.resolve();
   if (preparing) return preparing;
-  const { clientId } = requireConfig();
+  const clientId = getGeeClientId()!;
   preparing = Promise.all([ensureGoogleIdentity(), ensureEarthEngine()])
     .then(([google, ee]) => {
       state.tokenClient = google.accounts.oauth2.initTokenClient({
@@ -237,6 +291,7 @@ export function connectEarthEngine(): Promise<EarthEngineApi | null> {
         return null;
       }
       state.api = ee;
+      initializedProject = config.projectId;
       update({ status: "connected", error: null });
       return ee;
     })
@@ -258,5 +313,6 @@ export function disconnectEarthEngine(): void {
     void 0;
   }
   state.api = null;
+  initializedProject = null;
   update({ status: "idle", error: null });
 }

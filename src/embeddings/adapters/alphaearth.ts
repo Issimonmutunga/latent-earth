@@ -5,7 +5,7 @@ import type {
   SourceStatus,
 } from "../../types/embedding.ts";
 import { ALPHAEARTH, getGeeProjectId, isConfigured, resolveYear } from "../gee/config.ts";
-import { describeEarthEngineError, getEarthEngineApi } from "../gee/connection.ts";
+import { describeEarthEngineError, getEarthEngineApi, NO_PROJECT_MESSAGE } from "../gee/connection.ts";
 import type { EarthEngineSampleResult } from "../../types/earthengine.ts";
 import { buildSampleGrid, featuresToEmbeddingPoints } from "../gee/sampling.ts";
 
@@ -25,12 +25,7 @@ export const alphaEarthSource: EmbeddingSource = {
     return isConfigured() ? "available" : "integration-pending";
   },
   async query(request: EmbeddingQuery): Promise<EmbeddingResult> {
-    const projectId = getGeeProjectId();
-    if (!projectId) {
-      throw new Error(
-        "AlphaEarth is served through Google Earth Engine. Set VITE_GEE_PROJECT_ID to your Earth Engine-enabled Cloud Project ID to use it.",
-      );
-    }
+    if (!getGeeProjectId()) throw new Error(NO_PROJECT_MESSAGE);
     const api = getEarthEngineApi();
     if (!api) {
       throw new Error(

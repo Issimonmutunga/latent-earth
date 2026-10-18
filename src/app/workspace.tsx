@@ -13,7 +13,9 @@ import { createMockSource } from "../embeddings/mock/mockSource.ts";
 import {
   connectEarthEngine,
   getEarthEngineError,
+  getEarthEngineProject,
   getEarthEngineStatus,
+  NO_PROJECT_MESSAGE,
   prepareEarthEngine,
 } from "../embeddings/gee/connection.ts";
 import { kmeans } from "../analysis/clustering.ts";
@@ -45,6 +47,9 @@ export type MapRequest =
 
 export const MAX_PINNED = 5;
 
+/** Sections of the in-app guide. */
+export type GuideSection = "welcome" | "quickstart" | "setup" | "using" | "results" | "troubleshooting";
+
 /** Control-bar step whose popover is open. */
 export type StepId = "source" | "area" | "sample" | "target";
 
@@ -70,6 +75,7 @@ export interface WorkspaceState {
   mapRequest: MapRequest | null;
   toast: { text: string; n: number } | null;
   openStep: StepId | null;
+  guide: GuideSection | null;
 }
 
 type Action =
@@ -98,7 +104,8 @@ type Action =
   | { type: "label-point"; row: TargetRow; label: string | null }
   | { type: "fly-to-point"; id: string }
   | { type: "toast"; text: string }
-  | { type: "open-step"; step: StepId | null };
+  | { type: "open-step"; step: StepId | null }
+  | { type: "open-guide"; section: GuideSection | null };
 
 const initialState: WorkspaceState = {
   sources: buildSourceList(),
@@ -122,6 +129,7 @@ const initialState: WorkspaceState = {
   mapRequest: null,
   toast: null,
   openStep: null,
+  guide: null,
 };
 
 /** Color basis to fall back to when the current one loses its data. */
@@ -261,6 +269,8 @@ function reducer(state: WorkspaceState, action: Action): WorkspaceState {
     }
     case "open-step":
       return { ...state, openStep: action.step };
+    case "open-guide":
+      return { ...state, guide: action.section, openStep: action.section ? null : state.openStep };
     case "toast":
       return { ...state, toast: { text: action.text, n: (state.toast?.n ?? 0) + 1 } };
     default:
@@ -293,6 +303,7 @@ export interface WorkspaceApi {
   flyToPoint: (id: string) => void;
   notify: (text: string) => void;
   setOpenStep: (step: StepId | null) => void;
+  openGuide: (section: GuideSection | null) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceApi | null>(null);
@@ -324,6 +335,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (!source || !area || status.kind === "retrieving") return;
     // Sign in on the researcher's behalf so Retrieve is a single click. This
     // must start before any await so Google's popup counts as part of the click.
+    if (source.providerConnection === "earth-engine" && !getEarthEngineProject()) {
+      dispatch({ type: "retrieve-error", message: NO_PROJECT_MESSAGE });
+      dispatch({ type: "open-step", step: "source" });
+      return;
+    }
     const needsSignIn =
       source.providerConnection === "earth-engine" && getEarthEngineStatus() !== "connected";
     const signIn = needsSignIn ? connectEarthEngine() : null;
@@ -383,6 +399,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const flyToPoint = useCallback((id: string) => dispatch({ type: "fly-to-point", id }), []);
   const notify = useCallback((text: string) => dispatch({ type: "toast", text }), []);
   const setOpenStep = useCallback((step: StepId | null) => dispatch({ type: "open-step", step }), []);
+  const openGuide = useCallback(
+    (section: GuideSection | null) => dispatch({ type: "open-guide", section }),
+    [],
+  );
 
   const api: WorkspaceApi = useMemo(
     () => ({
@@ -410,6 +430,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       flyToPoint,
       notify,
       setOpenStep,
+      openGuide,
     }),
     [
       state,
@@ -436,6 +457,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       flyToPoint,
       notify,
       setOpenStep,
+      openGuide,
     ],
   );
 
